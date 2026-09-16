@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Be Your Self — Game Kehidupan</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+
+  body {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: #eee;
+    overflow-x: hidden;
+  }
+
+  .game-container {
+    width: 100%;
+    max-width: 720px;
+    background: rgba(20, 20, 40, 0.85);
+    border: 2px solid #7c3aed;
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 0 40px rgba(124, 58, 237, 0.5);
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.8s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2.2em;
+    background: linear-gradient(90deg, #a78bfa, #f472b6, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #a78bfa;
+    font-style: italic;
+    margin-bottom: 25px;
+    font-size: 0.95em;
+  }
+
+  /* STATS */
+  .stats {
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid #7c3aed33;
+  }
+
+  .stat-row {
+    display: flex;
+    align-items: center;
+    margin: 8px 0;
+    font-size: 0.9em;
+  }
+
+  .stat-label {
+    width: 130px;
+    font-weight: 600;
+  }
+
+  .stat-bar {
+    flex: 1;
+    height: 14px;
+    background: #1a1a2e;
+    border-radius: 7px;
+    overflow: hidden;
+    margin: 0 10px;
+  }
+
+  .stat-fill {
+    height: 100%;
+    border-radius: 7px;
+    transition: width 0.6s ease;
+  }
+
+  .fill-identitas { background: linear-gradient(90deg, #a78bfa, #c4b5fd); }
+  .fill-ekspektasi { background: linear-gradient(90deg, #fbbf24, #fcd34d); }
+  .fill-kebahagiaan { background: linear-gradient(90deg, #f472b6, #fb7185); }
+  .fill-energi { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+  .fill-stress { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+  .stat-value {
+    width: 40px;
+    text-align: right;
+    font-weight: bold;
+  }
+
+  /* AVATAR */
+  .avatar-preview {
+    display: flex;
+    justify-content: center;
+    margin: 20px 0;
+  }
+
+  .avatar-box {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 3px solid #a78bfa;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 5em;
+    background: radial-gradient(circle, #2a2a4e, #1a1a2e);
+    box-shadow: 0 0 25px #7c3aed88;
+    animation: pulse 3s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 25px #7c3aed88; }
+    50% { box-shadow: 0 0 45px #a78bfaaa; }
+  }
+
+  /* SCENE */
+  .scene {
+    background: rgba(124, 58, 237, 0.1);
+    border-left: 4px solid #a78bfa;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    line-height: 1.6;
+    font-size: 1.05em;
+    animation: slideIn 0.5s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(-15px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .scene-title {
+    color: #f472b6;
+    font-weight: bold;
+    margin-bottom: 12px;
+    font-size: 1.1em;
+  }
+
+  .scene-text { color: #e0e0e0; margin-bottom: 10px; }
+  .scene-text em { color: #a78bfa; font-style: italic; }
+
+  /* INNER VOICES */
+  .inner-voices {
+    display: grid;
+    gap: 6px;
+    margin-top: 12px;
+    padding: 10px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 8px;
+    font-size: 0.85em;
+  }
+
+  .voice-ego { color: #fbbf24; }
+  .voice-superego { color: #60a5fa; }
+  .voice-id { color: #f472b6; }
+
+  /* BUTTONS */
+  .choices {
+    display: grid;
+    gap: 10px;
+    margin-top: 15px;
+  }
+
+  button.choice {
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.3s ease;
+    font-family: inherit;
+  }
+
+  button.choice:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px #7c3aed88;
+    background: linear-gradient(135deg, #a78bfa, #c4b5fd);
+  }
+
+  button.choice:active { transform: translateY(0); }
+
+  /* INPUT */
+  input[type="text"] {
+    width: 100%;
+    padding: 14px;
+    border-radius: 10px;
+    border: 2px solid #7c3aed;
+    background: #1a1a2e;
+    color: #fff;
+    font-size: 1em;
+    margin-bottom: 12px;
+    outline: none;
+    font-family: inherit;
+  }
+
+  input[type="text"]:focus { border-color: #f472b6; }
+
+  /* ENDING */
+  .ending {
+    text-align: center;
+    padding: 25px;
+    border-radius: 15px;
+    background: radial-gradient(circle, #2a2a4e, #1a1a2e);
+    border: 2px solid #a78bfa;
+    animation: fadeIn 1.5s ease;
+  }
+
+  .ending-title {
+    font-size: 2em;
+    font-weight: 900;
+    background: linear-gradient(90deg, #fbbf24, #f472b6, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 15px;
+    letter-spacing: 3px;
+  }
+
+  .ending-quote {
+    font-style: italic;
+    color: #c4b5fd;
+    margin: 15px 0;
+    font-size: 1.05em;
+    line-height: 1.6;
+  }
+
+  .ending-stat {
+    display: inline-block;
+    margin: 5px 10px;
+    padding: 5px 12px;
+    background: rgba(124,58,237,0.2);
+    border-radius: 20px;
+    font-size: 0.9em;
+  }
+
+  .log-list {
+    text-align: left;
+    margin-top: 15px;
+    padding: 15px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 10px;
+    font-size: 0.9em;
+    line-height: 1.8;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .log-list li { color: #c4b5fd; list-style: none; }
+
+  /* BUTTON RESTART */
+  button.restart {
+    display: block;
+    margin: 20px auto 0;
+    padding: 12px 30px;
+    background: linear-gradient(135deg, #f472b6, #a78bfa);
+    color: #fff;
+    border: none;
+    border-radius: 25px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+  }
+
+  button.restart:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 25px #f472b6aa;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .game-container { padding: 20px; }
+    h1 { font-size: 1.6em; }
+    .stat-label { width: 100px; font-size: 0.85em; }
+    .avatar-box { width: 110px; height: 110px; font-size: 4em; }
+  }
+
+  /* SCROLLBAR */
+  .log-list::-webkit-scrollbar { width: 6px; }
+  .log-list::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="game-container" id="game">
+  <!-- Konten akan diisi oleh JavaScript -->
+</div>
+
+<script>
+// ================= STATE =================
+const state = {
+  name: "",
+  age: 0,
+  identitas: 50,
+  ekspektasi: 50,
+  kebahagiaan: 50,
+  energi: 100,
+  stress: 0,
+  trauma: [],
+  mimpi: "",
+  log: [],
+  sceneIndex: 0,
+  skinTone: "#e8b89a",
+  hairStyle: "Curly Afro",
+  fashion: "Streetwear"
+};
+
+// ================= AVATAR EMOJI =================
+const fashionEmoji = {
+  "Streetwear": "🧢",
+  "Soft Aesthetic": "🌸",
+  "Vintage Classic": "🎩",
+  "Alternative": "🎧",
+  "Minimalist": "🧥"
+};
+
+// ================= SKENARIO =================
+const scenes = [
+  // ============ SCENE 0: INTRO ============
+  {
+    title: "✨ Be Your Self ✨",
+    text: `"Sebelum kamu bisa bicara, dunia sudah punya rencananya untukmu."`,
+    type: "input-name"
+  },
+
+  // ============ SCENE 1: RUMAH ============
+  {
+    title: "📍 Rumah Kecil — Usia 5 tahun",
+    text: `Ibu: "Nak, kamu mau jadi apa kalau besar nanti?"`,
+    choices: [
+      { label: "🎨 \"Aku mau jadi pelukis, Bu!\"", effect: { identitas: 10, ekspektasi: -5 },
+        result: "Ibu tersenyum kecil. Ayah mengerutkan dahi.", log: "Memilih jadi pelukis di usia 5." },
+      { label: "🩺 \"Aku mau jadi dokter!\"", effect: { ekspektasi: 15, kebahagiaan: 5 },
+        result: "Ibu memelukmu bangga. Ayah mengangguk.", log: "Memilih jadi dokter di usia 5." },
+      { label: "🚀 \"Aku mau jadi astronot!\"", effect: { kebahagiaan: 10 },
+        result: "Kedua orang tuamu tertawa hangat.", log: "Memilih jadi astronot di usia 5." },
+      { label: "🤷 \"Aku belum tahu, Bu.\"", effect: { identitas: 5, ekspektasi: -3 },
+        result: "Ibu terlihat khawatir, tapi tetap mengelus kepalamu.", log: "Jujur belum tahu cita-cita di usia 5." }
+    ]
+  },
+
+  // ============ SCENE 2: SEKOLAH ============
+  {
+    title: "📍 Hari Pertama Sekolah — Usia 7 tahun",
+    text: `Anak-anak lain berkelompok. Kamu berdiri sendiri.`,
+    voices: true,
+    age: 7,
+    choices: [
+      { label: "👥 Menghampiri anak-anak populer", effect: { ekspektasi: 10, identitas: -5 },
+        result: "Kamu diterima, tapi harus tertawa pada lelucon yang tidak lucu.", log: "Bergabung dengan kelompok populer." },
+      { label: "📚 Duduk sendiri di perpustakaan", effect: { identitas: 5, kebahagiaan: -5 },
+        result: "Buku-buku menemanimu. Kamu merasa aman, tapi kesepian.", log: "Memilih menyendiri di perpustakaan." },
+      { label: "🎨 Mendekati anak yang menggambar", effect: { identitas: 10, kebahagiaan: 10 },
+        result: "Kamu menemukan teman pertama yang benar-benar 'kamu'.", log: "Berteman dengan anak kreatif." },
+      { label: "😢 Menangis dan minta pulang", effect: { kebahagiaan: -10, stress: 10, trauma: "Sekolah = tempat menakutkan" },
+        result: "Guru memelukmu. Kamu ingin pulang selamanya.", log: "Trauma hari pertama sekolah." }
+    ]
+  },
+
+  // ============ SCENE 3: BULLYING ============
+  {
+    title: "📍 Koridor Sekolah — Usia 10 tahun",
+    text: `Tiga anak besar mengelilingi temanmu yang berkacamata tebal.\n\n<em>"Kamu tahu ini salah. Tapi kamu juga tahu, kalau kamu diam, kamu aman."</em>`,
+    voices: true,
+    age: 10,
+    choices: [
+      { label: "🛡️ Bela Temanmu", effect: { identitas: 15, kebahagiaan: -5, stress: 10 },
+        result: "Kamu dipukul, tapi temanmu tidak pernah lupa.", log: "Membela teman yang di-bully." },
+      { label: "🤐 Diam Saja", effect: { identitas: -15, kebahagiaan: -10, stress: 15, trauma: "Rasa bersalah karena diam" },
+        result: "Kamu menunduk. Malam itu, kamu tidak bisa tidur.", log: "Diam saat bullying terjadi." },
+      { label: "🏃 Lapor Guru", effect: { ekspektasi: 10, kebahagiaan: 5 },
+        result: "Guru menindak. Beberapa teman menjauh, tapi kamu benar.", log: "Melapor ke guru." },
+      { label: "📱 Rekam dan Sebar", effect: { identitas: -20, ekspektasi: 5, stress: 20, trauma: "Menjadi algojo demi penerimaan" },
+        result: "Kamu tertawa. Tapi hatimu menangis.", log: "Merekam dan menyebarkan bullying." }
+    ]
+  },
+
+  // ============ SCENE 4: MIMPI ============
+  {
+    title: "📍 Kamar Malam — Usia 12 tahun",
+    text: `"Malam ini, untuk pertama kalinya, kamu bertanya:\nSiapa sebenarnya aku?"\n\n✍️ Tulis satu kalimat mimpimu:`,
+    type: "input-mimpi",
+    age: 12
+  },
+
+  // ============ SCENE 5: PARADOKS DEWASA ============
+  {
+    title: "⚠️ Moment of Paradox — Usia 18 tahun",
+    text: `Ayahmu ingin kamu jadi dokter.\nTapi kamu ingin jadi seniman.`,
+    voices: true,
+    age: 18,
+    choices: [
+      { label: "🎨 Ikuti Mimpimu (+Bahagia, −Ekspektasi, −Uang)", effect: { kebahagiaan: 20, ekspektasi: -20, identitas: 15, energi: -10 },
+        result: "Kamu mendaftar jurusan seni. Ayahmu diam 3 hari.", log: "Mengikuti mimpinya jadi seniman." },
+      { label: "🩺 Turuti Ayah (+Uang, +Ekspektasi, −Identitas)", effect: { ekspektasi: 20, identitas: -20, stress: 15 },
+        result: "Kamu memakai jas putih. Tapi cermin tidak lagi mengenalmu.", log: "Menuruti ayah jadi dokter." },
+      { label: "⚖️ Jalan Tengah (Risiko Burnout)", effect: { stress: 30, energi: -20, identitas: 5, ekspektasi: 5 },
+        result: "Kamu menjalani dua hidup sekaligus. Lelah, tapi bertahan.", log: "Menjalani dua jalan sekaligus." }
+    ]
+  },
+
+  // ============ SCENE 6: PARADOKS CINTA ============
+  {
+    title: "⚠️ Moment of Paradox — Usia 25 tahun",
+    text: `Kekasihmu pindah ke luar negeri.\nKariermu sedang naik pesat.`,
+    voices: true,
+    age: 25,
+    choices: [
+      { label: "✈️ Ikut Cinta (+Bahagia, −Karir, −Uang)", effect: { kebahagiaan: 20, ekspektasi: -15, energi: -10 },
+        result: "Kamu memilih cinta. Dunia terasa lebih hangat, walau dompet tipis.", log: "Memilih cinta di atas karier." },
+      { label: "💼 Pilih Karir (+Uang, −Bahagia, +Penyesalan)", effect: { ekspektasi: 20, kebahagiaan: -15, stress: 10 },
+        result: "Kariermu melesat. Tapi malam-malam terasa sepi.", log: "Memilih karier di atas cinta." },
+      { label: "📱 LDR (50/50)", effect: { stress: 15, energi: -10 },
+        result: "Hubungan jarak jauh. Kadang manis, kadang melelahkan.", log: "Menjalani hubungan jarak jauh." }
+    ]
+  },
+
+  // ============ SCENE 7: PARADOKS USIA 40 ============
+  {
+    title: "⚠️ Moment of Paradox — Usia 40 tahun",
+    text: `Anakmu ingin mengejar mimpinya.\nTapi kamu tahu itu berisiko dan tidak realistis.`,
+    voices: true,
+    age: 40,
+    choices: [
+      { label: "🌟 Dukung Mimpinya", effect: { identitas: 15, kebahagiaan: 15, ekspektasi: -5 },
+        result: "Kamu melihat dirimu di matanya. Kali ini, kamu memilih berbeda.", log: "Mendukung mimpi anaknya." },
+      { label: "🛡️ Arahkan ke Jalan Aman", effect: { ekspektasi: 15, identitas: -15, kebahagiaan: -5 },
+        result: "Kamu menjadi orang yang dulu kau benci. Tapi kamu yakin ini benar.", log: "Mengarahkan anak ke jalan aman." },
+      { label: "⚖️ Biarkan Ia Memilih", effect: { identitas: 10, kebahagiaan: 10, stress: 5 },
+        result: "Kamu belajar percaya. Kadang itu cukup.", log: "Membiarkan anak memilih jalannya." }
+    ]
+  }
+];
+
+// ================= GAME ENGINE =================
+const gameEl = document.getElementById("game");
+
+function clamp(v) { return Math.max(0, Math.min(100, v)); }
+
+function applyEffect(effect, trauma) {
+  if (effect.identitas) state.identitas = clamp(state.identitas + effect.identitas);
+  if (effect.ekspektasi) state.ekspektasi = clamp(state.ekspektasi + effect.ekspektasi);
+  if (effect.kebahagiaan) state.kebahagiaan = clamp(state.kebahagiaan + effect.kebahagiaan);
+  if (effect.energi) state.energi = clamp(state.energi + effect.energi);
+  if (effect.stress) state.stress = clamp(state.stress + effect.stress);
+  if (trauma) state.trauma.push(trauma);
+}
+
+function renderStats() {
+  return `
+    <div class="stats">
+      <div style="text-align:center; margin-bottom:10px; color:#c4b5fd; font-size:0.95em;">
+        👤 <b>${state.name || "..."}</b> &nbsp;|&nbsp; 🎂 ${state.age} tahun
+      </div>
+      ${statBar("🎭 Identitas", state.identitas, "fill-identitas")}
+      ${statBar("💰 Ekspektasi", state.ekspektasi, "fill-ekspektasi")}
+      ${statBar("❤️ Kebahagiaan", state.kebahagiaan, "fill-kebahagiaan")}
+      ${statBar("⚡ Energi", state.energi, "fill-energi")}
+      ${statBar("🧠 Stress", state.stress, "fill-stress")}
+    </div>
+  `;
+}
+
+function statBar(label, value, cls) {
+  return `
+    <div class="stat-row">
+      <div class="stat-label">${label}</div>
+      <div class="stat-bar"><div class="stat-fill ${cls}" style="width:${value}%"></div></div>
+      <div class="stat-value">${value}</div>
+    </div>
+  `;
+}
+
+function renderAvatar() {
+  const emoji = fashionEmoji[state.fashion] || "🧑";
+  return `
+    <div class="avatar-preview">
+      <div class="avatar-box" style="background: radial-gradient(circle, ${state.skinTone}44, #1a1a2e);">
+        ${emoji}
+      </div>
+    </div>
+  `;
+}
+
+function innerVoicesHTML() {
+  return `
+    <div class="inner-voices">
+      <div class="voice-ego">🗣️ EGO: "Kamu harus menang!"</div>
+      <div class="voice-superego">🗣️ SUPEREGO: "Apa kata orang nanti?"</div>
+      <div class="voice-id">🗣️ ID: "Lakukan yang kamu mau!"</div>
+    </div>
+  `;
+}
+
+// ================= SCREEN: CREATOR =================
+function screenCreator() {
+  gameEl.innerHTML = `
+    <h1>BE YOUR SELF</h1>
+    <p class="subtitle">"Hidup adalah paradoks"</p>
+
+    <div class="avatar-preview">
+      <div class="avatar-box" id="avatarPreview">🧑</div>
+    </div>
+
+    <div style="margin: 20px 0;">
+      <label style="display:block; margin-bottom:6px; color:#c4b5fd;">👤 Nama Kamu</label>
+      <input type="text" id="inName" placeholder="Masukkan namamu..." maxlength="20">
+
+      <label style="display:block; margin-bottom:6px; color:#c4b5fd;">🎨 Warna Kulit</label>
+      <input type="color" id="inSkin" value="#e8b89a" style="width:100%; height:45px; border-radius:10px; border:2px solid #7c3aed; background:#1a1a2e; cursor:pointer; margin-bottom:14px;">
+
+      <label style="display:block; margin-bottom:6px; color:#c4b5fd;">💇 Gaya Rambut</label>
+      <select id="inHair" style="width:100%; padding:12px; border-radius:10px; border:2px solid #7c3aed; background:#1a1a2e; color:#fff; margin-bottom:14px; font-family:inherit;">
+        <option>Curly Afro</option>
+        <option>Straight Long</option>
+        <option>Wavy Medium</option>
+        <option>Pixie Cut</option>
+        <option>Ponytail</option>
+        <option>Braids</option>
+        <option>Dreadlocks</option>
+        <option>Mohawk</option>
+        <option>Bald</option>
+      </select>
+
+      <label style="display:block; margin-bottom:6px; color:#c4b5fd;">👕 Gaya Fashion</label>
+      <select id="inFashion" style="width:100%; padding:12px; border-radius:10px; border:2px solid #7c3aed; background:#1a1a2e; color:#fff; margin-bottom:14px; font-family:inherit;">
+        <option value="Streetwear">🖤 Streetwear</option>
+        <option value="Soft Aesthetic">🌸 Soft Aesthetic</option>
+        <option value="Vintage Classic">🎩 Vintage Classic</option>
+        <option value="Alternative">🎧 Alternative</option>
+        <option value="Minimalist">🧥 Minimalist</option>
+      </select>
+    </div>
+
+    <button class="choice" style="text-align:center;" id="btnStart">✔ Mulai Hidup</button>
+  `;
+
+  const skinEl = document.getElementById("inSkin");
+  const fashionEl = document.getElementById("inFashion");
+  const avatarEl = document.getElementById("avatarPreview");
+
+  function updateAvatar() {
+    avatarEl.style.background = `radial-gradient(circle, ${skinEl.value}44, #1a1a2e)`;
+    avatarEl.textContent = fashionEmoji[fashionEl.value] || "🧑";
+  }
+
+  skinEl.addEventListener("input", updateAvatar);
+  fashionEl.addEventListener("change", updateAvatar);
+
+  document.getElementById("btnStart").onclick = () => {
+    state.name = document.getElementById("inName").value.trim() || "Alex";
+    state.skinTone = skinEl.value;
+    state.hairStyle = document.getElementById("inHair").value;
+    state.fashion = fashionEl.value;
+    state.sceneIndex = 0;
+    renderScene();
+  };
+}
+
+// ================= SCREEN: SCENE =================
+function renderScene() {
+  const scene = scenes[state.sceneIndex];
+
+  if (!scene) {
+    renderEnding();
+    return;
+  }
+
+  if (scene.age) state.age = scene.age;
+
+  // INPUT NAMA
+  if (scene.type === "input-name") {
+    gameEl.innerHTML = `
+      <h1>BE YOUR SELF</h1>
+      <p class="subtitle">"Hidup adalah paradoks"</p>
+      <div class="scene">
+        <div class="scene-title">${scene.title}</div>
+        <div class="scene-text">${scene.text}</div>
+      </div>
+      <button class="choice" style="text-align:center;" id="btnNext">▶ Lanjutkan</button>
+    `;
+    document.getElementById("btnNext").onclick = () => {
+      state.sceneIndex++;
+      screenCreator();
+    };
+    return;
+  }
+
+  // INPUT MIMPI
+  if (scene.type === "input-mimpi") {
+    gameEl.innerHTML = `
+      ${renderStats()}
+      ${renderAvatar()}
+      <div class="scene">
+        <div class="scene-title">${scene.title}</div>
+        <div class="scene-text">${scene.text}</div>
+      </div>
+      <input type="text" id="inMimpi" placeholder="Tulis mimpimu..." maxlength="120">
+      <button class="choice" style="text-align:center;" id="btnMimpi">✍️ Simpan Mimpi</button>
+    `;
+    document.getElementById("btnMimpi").onclick = () => {
+      state.mimpi = document.getElementById("inMimpi").value.trim() || "Aku ingin bebas.";
+      state.identitas = clamp(state.identitas + 10);
+      state.kebahagiaan = clamp(state.kebahagiaan + 10);
+      state.log.push(`Menulis mimpi: "${state.mimpi}"`);
+      state.sceneIndex++;
+      renderScene();
+    };
+    return;
+  }
+
+  // PILIHAN
+  gameEl.innerHTML = `
+    ${renderStats()}
+    ${renderAvatar()}
+    <div class="scene">
+      <div class="scene-title">${scene.title}</div>
+      <div class="scene-text">${scene.text.replace(/\n/g, "<br>")}</div>
+      ${scene.voices ? innerVoicesHTML() : ""}
+    </div>
+    <div class="choices" id="choices"></div>
+  `;
+
+  const choicesEl = document.getElementById("choices");
+  scene.choices.forEach((c, i) => {
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    btn.textContent = c.label;
+    btn.onclick = () => {
+      applyEffect(c.effect, c.effect.trauma);
+      state.log.push(c.log);
+
+      // Tampilkan hasil
+      gameEl.innerHTML = `
+        ${renderStats()}
+        ${renderAvatar()}
+        <div class="scene">
+          <div class="scene-title">${scene.title}</div>
+          <div class="scene-text"><em>${c.result}</em></div>
+        </div>
+        <button class="choice" style="text-align:center;" id="btnContinue">▶ Lanjutkan</button>
+      `;
+      document.getElementById("btnContinue").onclick = () => {
+        state.sceneIndex++;
+        renderScene();
+      };
+    };
+    choicesEl.appendChild(btn);
+  });
+}
+
+// ================= SCREEN: ENDING =================
+function renderEnding() {
+  let title, quote;
+
+  if (state.identitas >= 80 && state.kebahagiaan >= 70) {
+    title = "🌟 BE YOUR SELF";
+    quote = "Kamu tidak sempurna, tapi kamu jujur pada dirimu sendiri.";
+  } else if (state.ekspektasi >= 80) {
+    title = "🎭 THE MASK";
+    quote = "Kamu hidup untuk orang lain. Kamu sukses, tapi hampa.";
+  } else if (state.kebahagiaan < 40 && state.identitas < 40) {
+    title = "💔 LOST SOUL";
+    quote = "Kamu kehilangan arah. Tapi masih ada waktu.";
+  } else if (state.stress >= 70) {
+    title = "🔥 BURNOUT";
+    quote = "Kamu bertahan terlalu lama. Saatnya berhenti dan bernapas.";
+  } else {
+    title = "☯️ BALANCE";
+    quote = "Kedewasaan adalah menerima paradoks.";
+  }
+
+  gameEl.innerHTML = `
+    <div class="ending">
+      <div class="ending-title">${title}</div>
+      <div style="font-size:3em; margin:15px 0;">${fashionEmoji[state.fashion] || "🧑"}</div>
+      <div class="ending-quote">"${quote}"</div>
+
+      <div>
+        <span class="ending-stat">🎂 ${state.age} tahun</span>
+        <span class="ending-stat">🎭 ${state.identitas}</span>
+        <span class="ending-stat">❤️ ${state.kebahagiaan}</span>
+      </div>
+
+      <div class="ending-quote" style="margin-top:20px; font-size:0.95em;">
+        ✍️ Mimpi masa kecilmu:<br>
+        <b style="color:#fbbf24;">"${state.mimpi}"</b>
+      </div>
+
+      <div class="log-list">
+        <div style="color:#f472b6; font-weight:bold; margin-bottom:8px;">📖 Jejak hidupmu:</div>
+        <ul>
+          ${state.log.map((l, i) => `<li>${i + 1}. ${l}</li>`).join("")}
+        </ul>
+        ${state.trauma.length ? `
+          <div style="color:#ef4444; font-weight:bold; margin-top:15px; margin-bottom:8px;">💔 Trauma yang kau bawa:</div>
+          <ul>${state.trauma.map(t => `<li>• ${t}</li>`).join("")}</ul>
+        ` : ""}
+      </div>
+
+      <div style="margin-top:20px; font-style:italic; color:#a78bfa; font-size:0.9em; line-height:1.6;">
+        "Be Your Self bukan tentang menemukan jawaban —<br>
+        tapi berani hidup dengan pertanyaannya."
+      </div>
+
+      <button class="restart" onclick="location.reload()">🔄 Main Ulang</button>
+    </div>
+  `;
+}
+
+// ================= START =================
+screenCreator();
+</script>
+
+</body>
+  </html>
