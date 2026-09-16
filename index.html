@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>NASIB KUY! - Paradoks Karier</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #1e1b3a, #0a0a15 70%);
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    color: #fff;
+    overflow: hidden;
+    user-select: none;
+  }
+  #gameWrap { text-align: center; position: relative; }
+  h1 {
+    font-size: 26px;
+    margin-bottom: 6px;
+    color: #ffd700;
+    text-shadow: 0 0 12px #ffd700, 0 0 24px #ff8800;
+    letter-spacing: 3px;
+  }
+  #hud {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: rgba(0,0,0,0.6);
+    border: 2px solid #ffd700;
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    font-size: 12px;
+  }
+  #hud div { display: flex; flex-direction: column; gap: 2px; }
+  #hud .label { color: #888; font-size: 10px; letter-spacing: 1px; }
+  #hud .val { color: #00ff88; font-weight: bold; font-size: 15px; }
+  #hud .val.warn { color: #ffaa00; }
+  #hud .val.danger { color: #ff4444; }
+  canvas {
+    display: block;
+    background: #0a0a15;
+    border: 2px solid #ffd700;
+    border-radius: 0 0 12px 12px;
+    box-shadow: 0 0 40px rgba(255,215,0,0.25);
+    max-width: 100vw;
+  }
+  #overlay {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(5,5,15,0.95);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+    padding: 24px;
+    overflow-y: auto;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h2 {
+    color: #ffd700;
+    font-size: 26px;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px #ffd700;
+    letter-spacing: 1px;
+  }
+  #overlay p { margin: 5px 0; font-size: 13px; line-height: 1.6; color: #ccc; }
+  .key {
+    background: #222;
+    padding: 2px 9px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    font-size: 12px;
+    color: #ffd700;
+  }
+  .paradox-box {
+    background: rgba(255,215,0,0.08);
+    border-left: 3px solid #ffd700;
+    padding: 10px 14px;
+    margin: 12px 0;
+    text-align: left;
+    font-size: 12px;
+    max-width: 500px;
+  }
+  .paradox-box b { color: #ffd700; }
+  button {
+    margin-top: 16px;
+    padding: 12px 34px;
+    font-size: 16px;
+    font-family: inherit;
+    background: linear-gradient(135deg, #ffd700, #ff8800);
+    color: #1a1a2e;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    letter-spacing: 2px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 0 20px rgba(255,215,0,0.4);
+  }
+  button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 30px rgba(255,215,0,0.7);
+  }
+  .legend {
+    display: flex;
+    gap: 14px;
+    margin-top: 12px;
+    font-size: 11px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .legend div { display: flex; align-items: center; gap: 5px; }
+  .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+  }
+  /* Choice Modal */
+  #choiceModal {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(5,5,15,0.94);
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    border-radius: 12px;
+    padding: 20px;
+    z-index: 10;
+  }
+  #choiceModal.show { display: flex; }
+  #choiceModal h3 {
+    color: #ffd700;
+    font-size: 18px;
+    margin-bottom: 4px;
+    text-shadow: 0 0 10px #ffd700;
+  }
+  #choiceModal .sub { color: #888; font-size: 11px; margin-bottom: 16px; }
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 560px;
+  }
+  .choice {
+    background: rgba(255,255,255,0.04);
+    border: 2px solid #333;
+    border-radius: 10px;
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    font-family: inherit;
+    color: #fff;
+    font-size: 12px;
+  }
+  .choice:hover {
+    border-color: #ffd700;
+    background: rgba(255,215,0,0.1);
+    transform: translateX(4px);
+  }
+  .choice .title { font-weight: bold; color: #ffd700; font-size: 13px; margin-bottom: 3px; }
+  .choice .desc { color: #aaa; font-size: 11px; line-height: 1.4; }
+  .choice .outcome { color: #ff6b6b; font-size: 10px; margin-top: 4px; font-style: italic; }
+  #feedback {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    pointer-events: none;
+    z-index: 20;
+    text-shadow: 0 0 15px currentColor;
+    opacity: 0;
+    transition: opacity 0.3s;
+    white-space: pre-line;
+  }
+  #feedback.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="gameWrap">
+  <h1>🎲 NASIB KUY! 🎲</h1>
+  <div id="hud">
+    <div><span class="label">💰 UANG</span><span class="val" id="money">50</span></div>
+    <div><span class="label">❤️ KESEHATAN</span><span class="val" id="health">100</span></div>
+    <div><span class="label">🧠 STRES</span><span class="val" id="stress">0</span></div>
+    <div><span class="label">⭐ REPUTASI</span><span class="val" id="rep">50</span></div>
+    <div><span class="label">📅 UMUR</span><span class="val" id="age">25</span></div>
+  </div>
+  <canvas id="canvas" width="720" height="440"></canvas>
+
+  <div id="overlay">
+    <h2>🎭 PARADOKS KARIER</h2>
+    <p>Setiap <b>pilihan pekerjaan</b> mengubah nasibmu —</p>
+    <p>tapi setiap keuntungan menyimpan <b>paradoks</b> tersembunyi.</p>
+
+    <div class="paradox-box">
+      <p><b>📌 Contoh Paradoks:</b></p>
+      <p>💼 <b>Kerja Lembur</b> → Uang naik, tapi kesehatan turun & stres naik.</p>
+      <p>🏖️ <b>Resign & Liburan</b> → Stres turun, tapi uang & reputasi turun.</p>
+      <p>📈 <b>Terima Promosi</b> → Reputasi naik, tapi stres melonjak.</p>
+    </div>
+
+    <p style="color:#ffd700; font-size:13px; margin-top:8px;">🎯 Target: Capai <b>Skor Nasib 500</b> sebelum umur 60!</p>
+
+    <div class="legend">
+      <div><div class="dot" style="background:#4ecdc4; color:#4ecdc4;"></div> Nasib Baik</div>
+      <div><div class="dot" style="background:#ff6b6b; color:#ff6b6b;"></div> Paradoks Buruk</div>
+      <div><div class="dot" style="background:#ffd700; color:#ffd700;"></div> Kopi/Kesempatan</div>
+    </div>
+
+    <button onclick="startGame()">MULAI HIDUP ▶</button>
+  </div>
+
+  <div id="choiceModal">
+    <h3 id="choiceTitle">PILIHAN NASIB</h3>
+    <div class="sub" id="choiceSub">Pilih dengan bijak...</div>
+    <div class="choices" id="choicesBox"></div>
+  </div>
+
+  <div id="feedback"></div>
+</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let state = {
+  money: 50,
+  health: 100,
+  stress: 0,
+  rep: 50,
+  age: 25,
+  score: 0,
+  running: false,
+  paused: false,
+  frame: 0,
+  particles: [],
+  floatingTexts: [],
+  bgOffset: 0,
+  cityLights: [],
+  nextChoiceAge: 27
+};
+
+// ============ PARADOKS KARIER ============
+// Setiap pilihan punya "keuntungan" & "paradoks" (konsekuensi tersembunyi)
+const CAREER_CHOICES = [
+  {
+    title: "💼 TERIMA LEMBUR TANPA BAYARAN",
+    desc: "Bos janji promosi. Kamu kerja 14 jam sehari.",
+    paradox: "Paradoks: Duit segar, tapi tubuh & pikiran jadi korban.",
+    effects: { money: +25, health: -12, stress: +18, rep: +8, age: +1 },
+    score: +40
+  },
+  {
+    title: "🏖️ RESIGN & JADI FREELANCER",
+    desc: "Bebas! Tapi penghasilan tidak pasti.",
+    paradox: "Paradoks: Kebebasan itu mahal — uang & reputasi taruhannya.",
+    effects: { money: -20, health: +15, stress: -25, rep: -10, age: +1 },
+    score: +25
+  },
+  {
+    title: "📈 TERIMA PROMOSI JABATAN",
+    desc: "Naik pangkat, gaji naik. Tapi tanggung jawab menggunung.",
+    paradox: "Paradoks: Makin tinggi jabatan, makin tinggi tekanan.",
+    effects: { money: +40, health: -10, stress: +22, rep: +18, age: +1 },
+    score: +50
+  },
+  {
+    title: "☕ BUKA WARUNG KOPI KECIL",
+    desc: "Modal kecil, impian besar. Jalan sendiri.",
+    paradox: "Paradoks: Jadi bos sendiri artinya tidak ada yang bayar saat sepi.",
+    effects: { money: -15, health: +5, stress: +5, rep: +10, age: +1 },
+    score: +35
+  },
+  {
+    title: "🎓 AMBIL KULIAH MALAM",
+    desc: "Tingkatkan skill, tapi waktu tidur jadi taruhan.",
+    paradox: "Paradoks: Investasi ilmu = investasi kelelahan.",
+    effects: { money: -25, health: -8, stress: +12, rep: +15, age: +1 },
+    score: +45
+  },
+  {
+    title: "🏢 PINDAH KE PERUSAHAAN BESAR",
+    desc: "Gaji 2x lipat, tapi jam kerja tidak manusiawi.",
+    paradox: "Paradoks: Uang banyak, waktu untuk menikmatinya tidak ada.",
+    effects: { money: +50, health: -18, stress: +25, rep: +12, age: +1 },
+    score: +55
+  },
+  {
+    title: "🚀 IKUT STARTUP TEMAN",
+    desc: "Peluang jadi orang kaya. Atau bangkrut bersama.",
+    paradox: "Paradoks: Risiko tinggi, tapi cerita hidup jadi menarik.",
+    effects: { money: -10, health: -5, stress: +15, rep: +5, age: +1 },
+    score: +30
+  },
+  {
+    title: "🧘 CUTI PANJANG 6 BULAN",
+    desc: "Reset pikiran. Tapi dompet ikut reset.",
+    paradox: "Paradoks: Sehat jiwa raga, tapi tabungan menipis.",
+    effects: { money: -30, health: +25, stress: -30, rep: -8, age: +1 },
+    score: +20
+  },
+  {
+    title: "🛵 JADI DRIVER OJOL FULL TIME",
+    desc: "Penghasilan harian, tapi badan jadi mesin.",
+    paradox: "Paradoks: Uang cepat, punggung cepat rusak.",
+    effects: { money: +20, health: -14, stress: +10, rep: -5, age: +1 },
+    score: +25
+  },
+  {
+    title: "📱 JUALAN ONLINE DARI RUMAH",
+    desc: "Fleksibel, tapi algoritma jadi bos baru.",
+    paradox: "Paradoks: Kerja dari kasur, tapi tidak pernah benar-benar libur.",
+    effects: { money: +15, health: -3, stress: +8, rep: +8, age: +1 },
+    score: +30
+  },
+  {
+    title: "🎰 INVESTASI SAHAM AGRESIF",
+    desc: "Cuan cepat atau nyungsep total.",
+    paradox: "Paradoks: Semakin tinggi harapan, semakin dalam kecewa.",
+    effects: { money: +35, health: -10, stress: +20, rep: +3, age: +1 },
+    score: +35
+  },
+  {
+    title: "🤝 JADI KONSULTAN LEPAS",
+    desc: "Dihormati, dibayar mahal, tapi klien tak kenal waktu.",
+    paradox: "Paradoks: Dianggap ahli, tapi tidak pernah bisa offline.",
+    effects: { money: +45, health: -15, stress: +18, rep: +22, age: +1 },
+    score: +50
+  },
+  {
+    title: "🏠 PULANG KE KAMPUNG & BERTANI",
+    desc: "Hidup tenang, hasil tak seberapa.",
+    paradox: "Paradoks: Damai jiwa, tapi dianggap 'gagal' oleh kota.",
+    effects: { money: -12, health: +18, stress: -20, rep: -12, age: +1 },
+    score: +28
+  },
+  {
+    title: "📺 JADI KONTEN KREATOR VIRAL",
+    desc: "Terkenal dalam semalam. Atau tidak pernah sama sekali.",
+    paradox: "Paradoks: Publik memuja, tapi privasi jadi taruhan.",
+    effects: { money: +30, health: -10, stress: +22, rep: +25, age: +1 },
+    score: +45
+  }
+];
+
+// ============ INISIALISASI ============
+function init() {
+  state = {
+    money: 50, health: 100, stress: 0, rep: 50, age: 25, score: 0,
+    running: true, paused: false, frame: 0,
+    particles: [], floatingTexts: [], bgOffset: 0, cityLights: [],
+    nextChoiceAge: 27
+  };
+  // Buat lampu kota background
+  for (let i = 0; i < 60; i++) {
+    state.cityLights.push({
+      x: Math.random() * W,
+      y: 200 + Math.random() * 180,
+      size: 1 + Math.random() * 2,
+      alpha: 0.3 + Math.random() * 0.6,
+      speed: 0.1 + Math.random() * 0.3
+    });
+  }
+  updateHUD();
+}
+
+function updateHUD() {
+  const set = (id, val, warn, danger) => {
+    const el = document.getElementById(id);
+    el.textContent = Math.round(val);
+    el.className = 'val' + (val <= danger ? ' danger' : val <= warn ? ' warn' : '');
+  };
+  set('money', state.money, 30, 10);
+  set('health', state.health, 40, 20);
+  set('stress', 100 - state.stress, 40, 20); // ditampilkan sebagai "sisa ketenangan"
+  set('rep', state.rep, 30, 10);
+  set('age', state.age);
+}
+
+// ============ BACKGROUND ============
+function drawBackground() {
+  // Gradient langit malam
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#0d0a2a');
+  grad.addColorStop(0.5, '#1a1440');
+  grad.addColorStop(1, '#0a0a15');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Bintang
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 40; i++) {
+    const x = (i * 137.5 + state.frame * 0.1) % W;
+    const y = (i * 97.3) % (H * 0.4);
+    const a = 0.3 + Math.sin(state.frame * 0.05 + i) * 0.3;
+    ctx.globalAlpha = a;
+    ctx.fillRect(x, y, 1.5, 1.5);
+  }
+  ctx.globalAlpha = 1;
+
+  // Siluet gedung
+  ctx.fillStyle = '#05050f';
+  const buildings = [
+    { x: 0, w: 80, h: 180 }, { x: 90, w: 60, h: 220 },
+    { x: 160, w: 90, h: 150 }, { x: 260, w: 70, h: 260 },
+    { x: 340, w: 100, h: 200 }, { x: 450, w: 80, h: 240 },
+    { x: 540, w: 90, h: 170 }, { x: 640, w: 80, h: 210 }
+  ];
+  buildings.forEach(b => {
+    ctx.fillRect(b.x, H - b.h - 30, b.w, b.h);
+    // Jendela menyala
+    ctx.fillStyle = '#ffd700';
+    for (let wy = H - b.h - 20; wy < H - 40; wy += 18) {
+      for (let wx = b.x + 8; wx < b.x + b.w - 8; wx += 16) {
+        if (Math.random() > 0.5 || (state.frame + wx + wy) % 200 < 5) {
+          ctx.globalAlpha = 0.5 + Math.sin(state.frame * 0.02 + wx) * 0.3;
+          ctx.fillRect(wx, wy, 5, 7);
+        }
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#05050f';
+  });
+
+  // Lampu kota berkedip
+  state.cityLights.forEach(l => {
+    ctx.globalAlpha = l.alpha * (0.6 + Math.sin(state.frame * 0.05 + l.x) * 0.4);
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    ctx.arc(l.x, l.y, l.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Jalan
+  ctx.fillStyle = '#080810';
+  ctx.fillRect(0, H - 60, W, 60);
+  ctx.strokeStyle = '#ffd700';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([20, 15]);
+  ctx.beginPath();
+  ctx.moveTo(-state.bgOffset % 35, H - 30);
+  ctx.lineTo(W, H - 30);
+  ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+// ============ CHARACTER ============
+function drawCharacter() {
+  const cx = W / 2;
+  const cy = H - 90;
+
+  // Bayangan
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 42, 30, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Koper (bila uang banyak)
+  if (state.money > 80) {
+    ctx.fillStyle = '#8b4513';
+    ctx.fillRect(cx - 45, cy + 10, 22, 28);
+    ctx.strokeStyle = '#000';
+    ctx.strokeRect(cx - 45, cy + 10, 22, 28);
+  }
+
+  // Badan (warna berubah sesuai stres)
+  const stressColor = state.stress > 70 ? '#8b0000' : 
+                      state.stress > 40 ? '#b8860b' : '#2c5aa0';
+  ctx.fillStyle = stressColor;
+  ctx.fillRect(cx - 22, cy - 8, 44, 42);
+
+  // Kepala
+  ctx.fillStyle = '#f5cba7';
+  ctx.beginPath();
+  ctx.arc(cx, cy - 25, 18, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Rambut (makin beruban seiring umur)
+  ctx.fillStyle = state.age > 40 ? '#888' : state.age > 32 ? '#5a4030' : '#2c1810';
+  ctx.beginPath();
+  ctx.arc(cx, cy - 30, 18, Math.PI, 0);
+  ctx.fill();
+
+  // Mata (lelah kalau stres tinggi)
+  ctx.fillStyle = '#000';
+  const eyeH = state.stress > 60 ? 1.5 : 3;
+  ctx.fillRect(cx - 9, cy - 25, 3, eyeH);
+  ctx.fillRect(cx + 6, cy - 25, 3, eyeH);
+
+  // Mulut (senyum/murung)
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  if (state.stress > 60) {
+    ctx.arc(cx, cy - 14, 6, Math.PI, 0); // murung
+  } else if (state.stress < 30) {
+    ctx.arc(cx, cy - 8, 6, 0, Math.PI); // senyum
+  } else {
+    ctx.moveTo(cx - 5, cy - 12);
+    ctx.lineTo(cx + 5, cy - 12);
+  }
+  ctx.stroke();
+
+  // Efek keringat kalau stres tinggi
+  if (state.stress > 60) {
+    ctx.fillStyle = '#4ecdc4';
+    ctx.beginPath();
+    ctx.arc(cx + 16, cy - 28 + Math.sin(state.frame * 0.15) * 3, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Kantong mata kalau health rendah
+  if (state.health < 50) {
+    ctx.strokeStyle = '#4a2a2a';
+    ctx.beginPath();
+    ctx.moveTo(cx - 11, cy - 20);
+    ctx.lineTo(cx - 6, cy - 20);
+    ctx.moveTo(cx + 5, cy - 20);
+    ctx.lineTo(cx + 10, cy - 20);
+    ctx.stroke();
+  }
+
+  // Aura kemakmuran kalau uang banyak
+  if (state.money > 120) {
+    ctx.strokeStyle = `rgba(255,215,0,${0.3 + Math.sin(state.frame * 0.08) * 0.2})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 55 + Math.sin(state.frame * 0.1) * 3, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+// ============ PARTICLES & FLOATING TEXT ============
+function addParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    state.particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 8,
+      vy: (Math.random() - 0.8) * 6,
+      size: 2 + Math.random() * 3,
+      color, life: 1
+    });
+  }
+}
+
+function addFloatingText(text, color) {
+  state.floatingTexts.push({
+    x: W / 2, y: H / 2 - 40,
+    text, color, life: 1, vy: -1
+  });
+}
+
+function drawParticles() {
+  state.particles.forEach(p => {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  state.particles = state.particles.filter(p => {
+    p.x += p.vx; p.y += p.vy; p.vy += 0.3;
+    p.life -= 0.025;
+    return p.life > 0;
+  });
+}
+
+function drawFloatingTexts() {
+  ctx.textAlign = 'center';
+  state.floatingTexts.forEach(t => {
+    ctx.globalAlpha = t.life;
+    ctx.font = 'bold 20px Courier New';
+    ctx.fillStyle = t.color;
+    ctx.shadowColor = t.color;
+    ctx.shadowBlur = 15;
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.shadowBlur = 0;
+    t.y += t.vy;
+    t.life -= 0.015;
+  });
+  ctx.globalAlpha = 1;
+  state.floatingTexts = state.floatingTexts.filter(t => t.life > 0);
+}
+
+// ============ GAME LOOP ============
+function update() {
+  if (!state.running) return;
+  state.frame++;
+  state.bgOffset += 2;
+
+  // Cek apakah waktunya pilihan karier
+  if (state.age >= state.nextChoiceAge && !state.paused) {
+    showChoice();
+  }
+
+  // Kondisi game over
+  if (state.health <= 0) return gameOver('💔 KESEHATAN HABIS', 'Tubuhmu menyerah sebelum nasib berubah.');
+  if (state.stress >= 100) return gameOver('🧠 STRES BERLEBIHAN', 'Pikiranmu kacau, butuh istirahat panjang.');
+  if (state.money <= -50) return gameOver('💸 BANGKRUT', 'Tidak ada uang, tidak ada masa depan.');
+  if (state.age >= 60) return gameOver('🎉 PENSIUN', 'Perjalanan kariermu berakhir. Nasib telah tertulis.');
+  if (state.score >= 500) return gameOver('🏆 NASIB BERUBAH!', 'Kamu berhasil mengubah nasibmu sendiri!');
+}
+
+function draw() {
+  drawBackground();
+  drawCharacter();
+  drawParticles();
+  drawFloatingTexts();
+
+  // Efek getar kalau stres tinggi
+  if (state.stress > 70) {
+    ctx.fillStyle = `rgba(255,0,0,${0.05 + Math.sin(state.frame * 0.3) * 0.03})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // Overlay info skor nasib di kanan atas
+  ctx.textAlign = 'right';
+  ctx.font = 'bold 14px Courier New';
+  ctx.fillStyle = '#ffd700';
+  ctx.shadowColor = '#ffd700';
+  ctx.shadowBlur = 10;
+  ctx.fillText(`SKOR NASIB: ${state.score}/500`, W - 15, 25);
+  ctx.shadowBlur = 0;
+  ctx.textAlign = 'left';
+}
+
+function loop() {
+  update();
+  draw();
+  requestAnimationFrame(loop);
+}
+
+// ============ PILIHAN KARIER (PARADOKS) ============
+let currentChoices = [];
+
+function showChoice() {
+  state.paused = true;
+  document.getElementById('choiceModal').classList.add('show');
+  
+  // Ambil 3 pilihan acak
+  const shuffled = [...CAREER_CHOICES].sort(() => Math.random() - 0.5);
+  currentChoices = shuffled.slice(0, 3);
+
+  document.getElementById('choiceTitle').textContent = `📅 UMUR ${state.age} — PILIHAN NASIB`;
+  document.getElementById('choiceSub').textContent = 'Pilih dengan bijak. Paradoks menanti...';
+
+  const box = document.getElementById('choicesBox');
+  box.innerHTML = '';
+  currentChoices.forEach((c, i) => {
+    const div = document.createElement('div');
+    div.className = 'choice';
+    div.innerHTML = `
+      <div class="title">${c.title}</div>
+      <div class="desc">${c.desc}</div>
+      <div class="outcome">⚡ ${c.paradox}</div>
+    `;
+    div.onclick = () => applyChoice(i);
+    box.appendChild(div);
+  });
+}
+
+function applyChoice(index) {
+  const choice = currentChoices[index];
+  document.getElementById('choiceModal').classList.remove('show');
+
+  // Terapkan efek
+  state.money += choice.effects.money;
+  state.health += choice.effects.health;
+  state.stress += choice.effects.stress;
+  state.rep += choice.effects.rep;
+  state.age += choice.effects.age;
+  state.score += choice.score;
+
+  // Clamp
+  state.money = Math.max(-50, state.money);
+  state.health = Math.min(100, Math.max(0, state.health));
+  state.stress = Math.min(100, Math.max(0, state.stress));
+  state.rep = Math.min(100, Math.max(0, state.rep));
+
+  // Efek visual berdasarkan efek dominan
+  const good = choice.effects.money + choice.effects.health + choice.effects.rep;
+  const bad = -choice.effects.stress;
+  const total = good + bad;
+  const color = total >= 0 ? '#4ecdc4' : '#ff6b6b';
+  
+  addParticles(W / 2, H / 2, color, 25);
+  addFloatingText(`+${choice.score} SKOR NASIB`, '#ffd700');
+  addFloatingText(choice.paradox.replace('Paradoks: ', ''), color);
+
+  // Getar layar sesuai besar dampak
+  const shake = Math.min(12, Math.abs(total) * 0.5);
+  canvas.style.transform = `translate(${(Math.random() - 0.5) * shake}px, ${(Math.random() - 0.5) * shake}px)`;
+  setTimeout(() => canvas.style.transform = 'translate(0,0)', 150);
+
+  // Jadwalkan pilihan berikutnya (2-4 tahun lagi)
+  state.nextChoiceAge = state.age + 2 + Math.floor(Math.random() * 3);
+
+  updateHUD();
+  state.paused = false;
+}
+
+// ============ GAME OVER ============
+function gameOver(title, msg) {
+  state.running = false;
+
+  let nasibRating;
+  if (state.score >= 500) nasibRating = '🌟 LEGENDA — Nasibmu berubah total!';
+  else if (state.score >= 350) nasibRating = '💫 SUKSES — Hidupmu lebih baik dari kebanyakan orang.';
+  else if (state.score >= 200) nasibRating = '👍 CUKUP — Setidaknya kau bertahan.';
+  else if (state.score >= 100) nasibRating = '😅 PAS-PASAN — Hidup keras, tapi jalan terus.';
+  else nasibRating = '😔 TRAGIS — Nasib tidak berpihak padamu.';
+
+  const overlay = document.getElementById('overlay');
+  overlay.innerHTML = `
+    <h2>${title}</h2>
+    <p style="color:#aaa; margin-bottom:10px;">${msg}</p>
+    <div style="font-size:22px; color:#ffd700; margin:14px 0; text-shadow:0 0 15px #ffd700;">
+      SKOR NASIB: ${state.score}/500
+    </div>
+    <p style="font-size:14px; color:#00ff88;">${nasibRating}</p>
+    <div class="paradox-box" style="margin-top:14px;">
+      <p><b>📊 STATISTIK AKHIR HIDUP:</b></p>
+      <p>💰 Uang: ${Math.round(state.money)} | ❤️ Kesehatan: ${Math.round(state.health)}%</p>
+      <p>🧠 Stres: ${Math.round(state.stress)}% | ⭐ Reputasi: ${Math.round(state.rep)}</p>
+      <p>📅 Umur: ${state.age} tahun</p>
+    </div>
+    <p style="color:#888; font-size:11px; margin-top:12px; font-style:italic;">
+      "Nasib bukan takdir — ia adalah akumulasi dari pilihan kecil yang kita buat setiap hari."
+    </p>
+    <button onclick="startGame()">HIDUP LAGI ▶</button>
+  `;
+  overlay.classList.remove('hidden');
+}
+
+// ============ CONTROL ============
+function startGame() {
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById('choiceModal').classList.remove('show');
+  init();
+}
+
+// Init & run
+init();
+state.running = false;
+loop();
+</script>
+</body>
+  </html>
