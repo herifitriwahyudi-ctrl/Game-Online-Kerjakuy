@@ -27,6 +27,7 @@
         }
         .sub { text-align: center; color: #888; font-size: 0.85em; margin-bottom: 25px; }
 
+        /* ===== LOGIN BOX ===== */
         .login-box {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             border-radius: 20px;
@@ -61,8 +62,72 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .login-btn:hover { transform: translateY(-2px); }
+        .login-btn:hover:not(:disabled) { transform: translateY(-2px); }
+        .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 0.8em;
+            color: #88ddff;
+            text-align: center;
+            line-height: 1.6;
+        }
+        .info-box b { color: #FFD700; }
+
+        /* ===== SETUP BOX (first-time) ===== */
+        .setup-box {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 450px;
+            margin: 60px auto;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.8), 0 0 0 3px rgba(0, 255, 136, 0.3);
+            border: 2px solid rgba(0, 255, 136, 0.4);
+            text-align: center;
+        }
+        .setup-box h2 { margin-bottom: 12px; color: #84fab0; }
+        .setup-box p { color: #aaa; font-size: 0.9em; margin-bottom: 20px; line-height: 1.6; }
+        .setup-box .default-creds {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: left;
+        }
+        .setup-box .default-creds .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            font-size: 0.9em;
+        }
+        .setup-box .default-creds .row .label { color: #888; }
+        .setup-box .default-creds .row .value {
+            color: #FFD700;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+        }
+        .setup-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            color: white;
+            font-weight: bold;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+        .setup-btn:hover:not(:disabled) { transform: translateY(-2px); }
+        .setup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* ===== DASHBOARD ===== */
         .dashboard { display: none; }
         .dashboard.show { display: block; }
 
@@ -248,6 +313,8 @@
             transform: translateX(100%);
             transition: all 0.3s;
             box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+            max-width: 320px;
+            font-size: 0.9em;
         }
         .toast.show { opacity: 1; transform: translateX(0); }
         .toast.error { background: linear-gradient(135deg, #e17055 0%, #c0392b 100%); }
@@ -264,16 +331,48 @@
         <h1>🔐 ADMIN PANEL</h1>
         <div class="sub">Fruit Crush Special — Manajemen User & Transaksi</div>
 
-        <div class="login-box" id="loginBox">
-            <h2>🔒 Login Admin</h2>
-            <input type="email" class="login-input" id="adminUser" placeholder="admin@fruitcrush.com">
-            <input type="password" class="login-input" id="adminPass" placeholder="Password">
-            <button class="login-btn" onclick="doLogin()">MASUK</button>
-            <div style="text-align:center;color:#888;font-size:0.75em;margin-top:12px;">
-                Gunakan akun dengan <b>role: admin</b> di Firestore
+        <!-- ===== SETUP BOX (pertama kali) ===== -->
+        <div class="setup-box" id="setupBox" style="display:none;">
+            <h2>🎉 Setup Admin Pertama Kali</h2>
+            <p>
+                Belum ada admin terdeteksi.<br>
+                Klik tombol di bawah untuk membuat akun admin default.
+            </p>
+            <div class="default-creds">
+                <div class="row">
+                    <span class="label">Username</span>
+                    <span class="value">admin</span>
+                </div>
+                <div class="row">
+                    <span class="label">Email</span>
+                    <span class="value">admin@fruitcrush.com</span>
+                </div>
+                <div class="row">
+                    <span class="label">Password</span>
+                    <span class="value">admin123</span>
+                </div>
+            </div>
+            <button class="setup-btn" id="btnSetup" onclick="setupDefaultAdmin()">
+                🚀 BUAT ADMIN DEFAULT
+            </button>
+            <div style="color:#ff8888;font-size:0.75em;margin-top:15px;">
+                ⚠️ Ganti password setelah login!
             </div>
         </div>
 
+        <!-- ===== LOGIN BOX ===== -->
+        <div class="login-box" id="loginBox" style="display:none;">
+            <h2>🔒 Login Admin</h2>
+            <input type="email" class="login-input" id="adminUser" placeholder="Email admin" autocomplete="email">
+            <input type="password" class="login-input" id="adminPass" placeholder="Password" autocomplete="current-password">
+            <button class="login-btn" id="btnLogin" onclick="doLogin()">MASUK</button>
+            <div class="info-box">
+                Default: <b>admin@fruitcrush.com</b> / <b>admin123</b><br>
+                (jika belum diubah)
+            </div>
+        </div>
+
+        <!-- ===== DASHBOARD ===== -->
         <div class="dashboard" id="dashboard">
             <div class="header-bar">
                 <div class="user">👤 Login sebagai: <b id="currentAdmin">-</b></div>
@@ -383,7 +482,6 @@
                             <tr>
                                 <th>Username</th>
                                 <th>Email</th>
-                                <th>Role</th>
                                 <th>Saldo</th>
                                 <th>UID</th>
                                 <th>Terdaftar</th>
@@ -405,6 +503,13 @@
     <script src="firebase-config.js"></script>
 
     <script>
+        // ===== DEFAULT ADMIN CREDENTIALS =====
+        const DEFAULT_ADMIN = {
+            username: 'admin',
+            email: 'admin@fruitcrush.com',
+            password: 'admin123'
+        };
+
         let adminUser = null;
         let currentTab = 'pendingTopup';
         let currentFilter = 'all';
@@ -418,28 +523,180 @@
             el.textContent = msg;
             el.className = 'toast show' + (isError ? ' error' : '');
             clearTimeout(el._t);
-            el._t = setTimeout(() => el.classList.remove('show'), 3000);
+            el._t = setTimeout(() => el.classList.remove('show'), 3500);
         }
 
+        // ===== CEK APAKAH USER ADALAH ADMIN =====
+        async function isUserAdmin(uid) {
+            try {
+                const doc = await FB.db.collection('admins').doc(uid).get();
+                return doc.exists;
+            } catch (e) {
+                console.error('isUserAdmin error:', e);
+                return false;
+            }
+        }
+
+        async function getAdminData(uid) {
+            try {
+                const doc = await FB.db.collection('admins').doc(uid).get();
+                return doc.exists ? { uid, ...doc.data() } : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // ===== CEK APAKAH SUDAH ADA ADMIN =====
+        async function adminExists() {
+            try {
+                const snap = await FB.db.collection('admins').limit(1).get();
+                return !snap.empty;
+            } catch (e) {
+                console.error('adminExists error:', e);
+                return false;
+            }
+        }
+
+        // ===== SETUP ADMIN DEFAULT =====
+        async function setupDefaultAdmin() {
+            const btn = document.getElementById('btnSetup');
+            btn.disabled = true;
+            btn.textContent = '⏳ MEMBUAT ADMIN...';
+
+            try {
+                // 1. Cek apakah admin sudah ada
+                const exists = await adminExists();
+                if (exists) {
+                    toast('⚠️ Admin sudah ada, silakan login', true);
+                    showLogin();
+                    return;
+                }
+
+                // 2. Buat akun Firebase Auth
+                let uid;
+                try {
+                    const cred = await FB.auth.createUserWithEmailAndPassword(
+                        DEFAULT_ADMIN.email,
+                        DEFAULT_ADMIN.password
+                    );
+                    uid = cred.user.uid;
+                    console.log('✅ Admin Auth dibuat:', uid);
+                } catch (authErr) {
+                    // Kalau email sudah ada di Auth, coba login
+                    if (authErr.code === 'auth/email-already-in-use') {
+                        console.log('⚠️ Email sudah ada di Auth, coba login...');
+                        const cred = await FB.auth.signInWithEmailAndPassword(
+                            DEFAULT_ADMIN.email,
+                            DEFAULT_ADMIN.password
+                        );
+                        uid = cred.user.uid;
+                    } else {
+                        throw authErr;
+                    }
+                }
+
+                // 3. Simpan ke collection "admins"
+                await FB.db.collection('admins').doc(uid).set({
+                    uid,
+                    username: DEFAULT_ADMIN.username,
+                    email: DEFAULT_ADMIN.email,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                console.log('✅ Dokumen admin dibuat');
+
+                // 4. Hapus dari collection "users" kalau ada
+                try {
+                    await FB.db.collection('users').doc(uid).delete();
+                    console.log('✅ Dihapus dari users (kalau ada)');
+                } catch (e) {
+                    // Abaikan
+                }
+
+                // 5. Sign out dulu, lalu sign in lagi supaya fresh
+                await FB.auth.signOut();
+
+                toast('🎉 Admin default berhasil dibuat!', false);
+                toast('Login: admin@fruitcrush.com / admin123', false);
+
+                setTimeout(() => {
+                    showLogin();
+                    // Auto-fill
+                    document.getElementById('adminUser').value = DEFAULT_ADMIN.email;
+                    document.getElementById('adminPass').value = DEFAULT_ADMIN.password;
+                }, 1500);
+            } catch (e) {
+                console.error('Setup error:', e);
+                let msg = '❌ Gagal buat admin';
+                if (e.code === 'auth/email-already-in-use') msg = '⚠️ Email sudah terdaftar di Auth';
+                else if (e.code === 'auth/weak-password') msg = '⚠️ Password terlalu lemah';
+                else if (e.code === 'auth/invalid-email') msg = '⚠️ Email tidak valid';
+                else if (e.code === 'permission-denied') msg = '⚠️ Akses ditolak — cek Firestore rules';
+                else msg += ': ' + e.message;
+                toast(msg, true);
+
+                btn.disabled = false;
+                btn.textContent = '🚀 BUAT ADMIN DEFAULT';
+            }
+        }
+
+        // ===== TAMPILKAN UI =====
+        function showSetup() {
+            document.getElementById('setupBox').style.display = 'block';
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('dashboard').classList.remove('show');
+        }
+
+        function showLogin() {
+            document.getElementById('setupBox').style.display = 'none';
+            document.getElementById('loginBox').style.display = 'block';
+            document.getElementById('dashboard').classList.remove('show');
+        }
+
+        function showDashboard() {
+            document.getElementById('setupBox').style.display = 'none';
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('dashboard').classList.add('show');
+            document.getElementById('currentAdmin').textContent = adminUser.email;
+            setupListeners();
+        }
+
+        // ===== LOGIN ADMIN =====
         async function doLogin() {
             const email = document.getElementById('adminUser').value.trim();
             const pass = document.getElementById('adminPass').value;
             if (!email || !pass) { toast('Email & password wajib diisi', true); return; }
 
+            const btn = document.getElementById('btnLogin');
+            btn.disabled = true;
+            btn.textContent = '⏳ LOGIN...';
+
             try {
                 const cred = await FB.auth.signInWithEmailAndPassword(email, pass);
-                const data = await FB.getUserData(cred.user.uid);
-                if (!data || data.role !== 'admin') {
+
+                // Cek UID di collection "admins"
+                const adminData = await getAdminData(cred.user.uid);
+                if (!adminData) {
                     await FB.auth.signOut();
                     toast('❌ Akun ini bukan admin', true);
+                    btn.disabled = false;
+                    btn.textContent = 'MASUK';
                     return;
                 }
+
                 adminUser = cred.user;
+                toast(`✅ Selamat datang, ${adminData.username || adminData.email}`);
                 showDashboard();
-                toast('✅ Login admin berhasil');
             } catch (e) {
                 console.error(e);
-                toast('❌ Email atau password salah', true);
+                let msg = '❌ Login gagal';
+                if (e.code === 'auth/user-not-found') msg = 'Email belum terdaftar';
+                else if (e.code === 'auth/wrong-password') msg = 'Password salah';
+                else if (e.code === 'auth/invalid-credential') msg = 'Email atau password salah';
+                else if (e.code === 'auth/invalid-email') msg = 'Format email tidak valid';
+                else if (e.code === 'auth/too-many-requests') msg = 'Terlalu banyak percobaan';
+                toast(msg, true);
+                btn.disabled = false;
+                btn.textContent = 'MASUK';
             }
         }
 
@@ -452,15 +709,8 @@
             window.location.reload();
         }
 
-        function showDashboard() {
-            document.getElementById('loginBox').style.display = 'none';
-            document.getElementById('dashboard').classList.add('show');
-            document.getElementById('currentAdmin').textContent = adminUser.email;
-            setupListeners();
-        }
-
+        // ===== LISTENERS =====
         function setupListeners() {
-            // Top ups
             unsubscribeTopups = FB.db.collection('topups')
                 .orderBy('time', 'desc').limit(100)
                 .onSnapshot((snap) => {
@@ -470,7 +720,6 @@
                     updateStats();
                 });
 
-            // Withdrawals
             unsubscribeWithdrawals = FB.db.collection('withdrawals')
                 .orderBy('time', 'desc').limit(100)
                 .onSnapshot((snap) => {
@@ -480,7 +729,6 @@
                     updateStats();
                 });
 
-            // Transactions
             unsubscribeTx = FB.db.collection('transactions')
                 .orderBy('time', 'desc').limit(200)
                 .onSnapshot((snap) => {
@@ -490,7 +738,6 @@
                     renderHistory();
                 });
 
-            // Users
             unsubscribeUsers = FB.db.collection('users')
                 .orderBy('createdAt', 'desc').limit(200)
                 .onSnapshot((snap) => {
@@ -502,7 +749,7 @@
                 });
         }
 
-        // ===== TOP UP PENDING =====
+        // ===== TOP UP =====
         function renderPendingTopup(list) {
             const pending = list.filter(p => p.status === 'pending');
             const body = document.getElementById('pendingTopupBody');
@@ -535,39 +782,44 @@
             if (!confirm('Setujui top up ini? Saldo user akan bertambah.')) return;
             try {
                 const doc = await FB.db.collection('topups').doc(id).get();
-                if (!doc.exists) {
-                    toast('❌ Data top up tidak ditemukan', true);
-                    return;
-                }
+                if (!doc.exists) { toast('❌ Data tidak ditemukan', true); return; }
                 const data = doc.data();
-                if (data.status !== 'pending') {
-                    toast('⚠️ Top up sudah diproses', true);
+                if (data.status !== 'pending') { toast('⚠️ Sudah diproses', true); return; }
+                if (!data.uid) { toast('❌ UID tidak ada', true); return; }
+
+                const targetUserRef = FB.db.collection('users').doc(data.uid);
+                const targetUserSnap = await targetUserRef.get();
+                if (!targetUserSnap.exists) {
+                    toast('❌ User target tidak ditemukan', true);
                     return;
                 }
+                const targetUserData = targetUserSnap.data();
 
-                // Update saldo user (admin boleh update user lain)
-                const userRef = FB.db.collection('users').doc(data.uid);
-                await userRef.update({
+                console.log('=== APPROVE TOP UP ===');
+                console.log('Target UID:', data.uid, '| Username:', targetUserData.username, '| Amount:', data.amount);
+
+                await targetUserRef.update({
                     balance: firebase.firestore.FieldValue.increment(data.amount),
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // Update status topup
                 await FB.db.collection('topups').doc(id).update({
                     status: 'success',
                     approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                    approvedBy: adminUser.email
+                    approvedBy: adminUser.email,
+                    approvedToUid: data.uid,
+                    approvedToUsername: targetUserData.username
                 });
 
-                toast(`✅ Top up ${data.username} disetujui. Saldo +${FB.formatRp(data.amount)}`);
+                toast(`✅ Top up ${targetUserData.username} disetujui. +${FB.formatRp(data.amount)}`);
             } catch (e) {
                 console.error(e);
-                toast('❌ Gagal approve: ' + e.message, true);
+                toast('❌ Gagal: ' + e.message, true);
             }
         }
 
         async function rejectTopup(id) {
-            if (!confirm('Tolak top up ini? Saldo user TIDAK akan bertambah.')) return;
+            if (!confirm('Tolak top up ini?')) return;
             try {
                 const doc = await FB.db.collection('topups').doc(id).get();
                 if (!doc.exists) return;
@@ -582,11 +834,11 @@
                 toast(`❌ Top up ${data.username} ditolak`);
             } catch (e) {
                 console.error(e);
-                toast('❌ Gagal reject: ' + e.message, true);
+                toast('❌ Gagal: ' + e.message, true);
             }
         }
 
-        // ===== WITHDRAW PENDING =====
+        // ===== WITHDRAW =====
         function renderPendingWithdraw(list) {
             const pending = list.filter(p => p.status === 'pending');
             const body = document.getElementById('pendingWithdrawBody');
@@ -626,18 +878,17 @@
                 toast('✅ Withdraw disetujui');
             } catch (e) {
                 console.error(e);
-                toast('❌ Gagal approve', true);
+                toast('❌ Gagal', true);
             }
         }
 
         async function rejectWithdraw(id) {
-            if (!confirm('Tolak withdraw ini? Saldo akan dikembalikan ke user.')) return;
+            if (!confirm('Tolak withdraw? Saldo akan dikembalikan.')) return;
             try {
                 const doc = await FB.db.collection('withdrawals').doc(id).get();
                 if (!doc.exists) return;
                 const data = doc.data();
 
-                // Kembalikan saldo
                 const userRef = FB.db.collection('users').doc(data.uid);
                 await userRef.update({
                     balance: firebase.firestore.FieldValue.increment(data.amount),
@@ -653,7 +904,7 @@
                 toast('↩️ Withdraw ditolak, saldo dikembalikan');
             } catch (e) {
                 console.error(e);
-                toast('❌ Gagal reject', true);
+                toast('❌ Gagal', true);
             }
         }
 
@@ -733,7 +984,6 @@
                 <tr>
                     <td><b>${u.username || '-'}</b></td>
                     <td><small>${u.email || ''}</small></td>
-                    <td>${u.role || 'user'}</td>
                     <td style="color:#FFD700;font-weight:bold">${FB.formatRp(u.balance || 0)}</td>
                     <td><small style="color:#888">${(u.uid || u.id || '').substring(0, 10)}</small></td>
                     <td>${u.createdAt ? formatTime(u.createdAt.toDate ? u.createdAt.toDate() : u.createdAt) : '-'}</td>
@@ -768,18 +1018,34 @@
             document.getElementById('panelUsers').style.display = tab === 'users' ? 'block' : 'none';
         }
 
-        // Auto-login
-        FB.auth.onAuthStateChanged(async (user) => {
-            if (user) {
-                const data = await FB.getUserData(user.uid);
-                if (data && data.role === 'admin') {
-                    adminUser = user;
-                    showDashboard();
-                }
-            }
-        });
+        // ===== INIT =====
+        (async function init() {
+            FB.registerSW();
 
-        FB.registerSW();
+            // Tunggu auth state dulu
+            FB.auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    // User sudah login — cek admin atau bukan
+                    const adminData = await getAdminData(user.uid);
+                    if (adminData) {
+                        adminUser = user;
+                        showDashboard();
+                        return;
+                    } else {
+                        // Bukan admin — sign out
+                        await FB.auth.signOut();
+                    }
+                }
+
+                // Belum login — cek apakah admin sudah ada
+                const exists = await adminExists();
+                if (exists) {
+                    showLogin();
+                } else {
+                    showSetup();
+                }
+            });
+        })();
     </script>
 </body>
-</html>
+                </html>
