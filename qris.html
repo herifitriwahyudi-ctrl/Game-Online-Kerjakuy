@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FFD700">
+    <link rel="manifest" href="manifest.json">
     <title>📱 Pembayaran QRIS — Fruit Crush</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', sans-serif; }
@@ -59,10 +61,7 @@
             font-family: 'Courier New', monospace;
         }
         .timer-value.expired { color: #dc2626; animation: blink 1s infinite; }
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
-        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 
         .qr-box {
             background: white;
@@ -165,6 +164,18 @@
             flex-wrap: wrap;
         }
         .amount-detail b { color: #84fab0; }
+
+        .user-tag {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 8px;
+            padding: 8px 12px;
+            text-align: center;
+            font-size: 0.75em;
+            color: #333;
+            margin-bottom: 12px;
+        }
+        .user-tag b { color: #0f3460; }
 
         .steps {
             background: #f9f9f9;
@@ -271,6 +282,8 @@
             <div class="amount-detail" id="amountDetail"></div>
         </div>
 
+        <div class="user-tag" id="userTag">👤 Memuat...</div>
+
         <div class="qr-box">
             <div class="qr-logo">QRIS <span>●</span> GPN</div>
             <img src="qris.png" alt="QRIS Code" class="qr-image" id="qrisImage"
@@ -328,10 +341,12 @@
         const amount = parseInt(params.get('amount')) || 0;
         const bonus = parseInt(params.get('bonus')) || 0;
         const method = params.get('method') || 'QRIS';
+        const urlUid = params.get('uid') || null;
 
         let timeLeft = 15 * 60;
         let timerInterval = null;
         let paid = false;
+        let currentUid = null;
 
         function toast(msg, type = 'info') {
             const el = document.getElementById('toast');
@@ -391,27 +406,51 @@
                 return;
             }
 
+            // ⚠️ AMBIL UID FRESH — jangan pakai cached variable
             const user = FB.auth.currentUser;
             if (!user) {
-                window.location.href = 'login.html';
+                toast('❌ Sesi login habis, silakan login ulang', 'error');
+                setTimeout(() => window.location.href = 'login.html', 1500);
                 return;
             }
+
+            // ⚠️ Validasi UID dari URL dengan UID yang login — cegah mismatch
+            if (urlUid && urlUid !== user.uid) {
+                console.error('UID mismatch! urlUid:', urlUid, 'user.uid:', user.uid);
+                toast('❌ Terjadi kesalahan: user mismatch. Silakan ulangi.', 'error');
+                setTimeout(() => window.location.href = 'pembayaran.html?mode=topup', 2000);
+                return;
+            }
+
+            const targetUid = user.uid;
 
             const btn = document.getElementById('btnConfirm');
             btn.disabled = true;
             btn.textContent = '⏳ Memverifikasi...';
 
             try {
-                const userData = await FB.getUserData(user.uid);
-                if (!userData) throw new Error('User data not found');
+                // Ambil data user fresh dari server
+                const freshData = await FB.getUserData(targetUid);
+                if (!freshData) {
+                    throw new Error('User tidak ditemukan di database');
+                }
 
                 const total = amount + bonus;
 
-                await FB.updateBalance(user.uid, total);
+                // ⚠️ Double-check log
+                console.log('=== TOP UP QRIS ===');
+                console.log('UID target:', targetUid);
+                console.log('Username:', freshData.username);
+                console.log('Saldo sebelum:', freshData.balance);
+                console.log('Nominal:', total);
 
+                // Update saldo
+                await FB.updateBalance(targetUid, total);
+
+                // Log transaksi
                 await FB.logTransaction({
-                    uid: user.uid,
-                    username: userData.username,
+                    uid: targetUid,
+                    username: freshData.username,
                     type: 'topup',
                     amount: total,
                     note: 'Top up via QRIS',
@@ -421,11 +460,12 @@
                 paid = true;
                 clearInterval(timerInterval);
 
+                // Overlay sukses
                 const overlay = document.getElementById('qrOverlay');
                 overlay.classList.add('show', 'success');
                 document.getElementById('overlayIcon').textContent = '✅';
                 document.getElementById('overlayTitle').textContent = 'Pembayaran Berhasil!';
-                document.getElementById('overlayDesc').textContent = `Saldo +${FB.formatRp(total)} ditambahkan.`;
+                document.getElementById('overlayDesc').textContent = `Saldo +${FB.formatRp(total)} untuk akun ${freshData.username}`;
 
                 toast(`✅ Pembayaran berhasil! Saldo +${FB.formatRp(total)}`, 'success');
 
@@ -435,8 +475,8 @@
                     window.location.href = 'index.html';
                 }, 2500);
             } catch (e) {
-                console.error(e);
-                toast('❌ Verifikasi gagal, coba lagi', 'error');
+                console.error('❌ confirmPaid error:', e);
+                toast('❌ Verifikasi gagal: ' + e.message, 'error');
                 btn.disabled = false;
                 btn.textContent = '✅ SAYA SUDAH BAYAR';
             }
@@ -453,29 +493,46 @@
             }
         }
 
-        (function init() {
-            FB.requireAuth('qris.html').then((user) => {
-                if (!user) return;
+        // ===== INIT =====
+        (async function init() {
+            FB.registerSW();
 
-                if (amount <= 0) {
-                    toast('❌ Nominal tidak valid', 'error');
-                    setTimeout(() => {
-                        window.location.href = 'pembayaran.html?mode=topup';
-                    }, 1500);
-                    return;
-                }
+            const user = await FB.requireAuth('qris.html');
+            if (!user) return;
+            currentUid = user.uid;
 
-                document.getElementById('amountDisplay').textContent = FB.formatRp(amount + bonus);
-                document.getElementById('stepAmount').textContent = FB.formatRp(amount + bonus);
+            // Cek URL uid kalau ada
+            if (urlUid && urlUid !== user.uid) {
+                toast('⚠️ URL UID tidak cocok dengan user login', 'error');
+                setTimeout(() => window.location.href = 'pembayaran.html?mode=topup', 2000);
+                return;
+            }
 
-                const detail = [];
-                detail.push(`Nominal: ${FB.formatRp(amount)}`);
-                if (bonus > 0) detail.push(`<b>+Bonus: ${FB.formatRp(bonus)}</b>`);
-                detail.push(`Metode: ${method}`);
-                document.getElementById('amountDetail').innerHTML = detail.join(' • ');
+            if (amount <= 0) {
+                toast('❌ Nominal tidak valid', 'error');
+                setTimeout(() => {
+                    window.location.href = 'pembayaran.html?mode=topup';
+                }, 1500);
+                return;
+            }
 
-                startTimer();
-            });
+            // Ambil data user untuk tampilan
+            const userData = await FB.getUserData(currentUid);
+            if (userData) {
+                document.getElementById('userTag').innerHTML =
+                    `👤 Pembayaran untuk: <b>${userData.username}</b>`;
+            }
+
+            document.getElementById('amountDisplay').textContent = FB.formatRp(amount + bonus);
+            document.getElementById('stepAmount').textContent = FB.formatRp(amount + bonus);
+
+            const detail = [];
+            detail.push(`Nominal: ${FB.formatRp(amount)}`);
+            if (bonus > 0) detail.push(`<b>+Bonus: ${FB.formatRp(bonus)}</b>`);
+            detail.push(`Metode: ${method}`);
+            document.getElementById('amountDetail').innerHTML = detail.join(' • ');
+
+            startTimer();
         })();
     </script>
 </body>
