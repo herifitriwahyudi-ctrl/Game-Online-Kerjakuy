@@ -211,9 +211,7 @@
             try {
                 await FB.auth.signInWithEmailAndPassword(email, pass);
                 showAlert('✅ Login berhasil! Mengalihkan...', 'success');
-                setTimeout(() => {
-                    window.location.href = nextPage;
-                }, 800);
+                setTimeout(() => { window.location.href = nextPage; }, 800);
             } catch (e) {
                 console.error(e);
                 let msg = 'Login gagal. ';
@@ -280,7 +278,7 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // Log bonus
+                // Log bonus pendaftaran
                 await FB.db.collection('transactions').add({
                     uid,
                     username,
@@ -293,9 +291,7 @@
                 });
 
                 showAlert('🎉 Pendaftaran sukses! Mengalihkan...', 'success');
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 1200);
+                setTimeout(() => { window.location.href = 'index.html'; }, 1200);
             } catch (e) {
                 console.error(e);
                 let msg = 'Pendaftaran gagal. ';
@@ -310,23 +306,25 @@
             }
         }
 
-        // Auto redirect kalau sudah login
+        // ✅ FIX: auto redirect tanpa loop
         (async function checkAutoLogin() {
             const user = await FB.waitForAuth();
-            if (user) {
-                console.log('User sudah login, redirect ke', nextPage);
-                window.location.href = nextPage;
-            }
+            if (!user) return;
+
+            // Hindari loop: kalau nextPage adalah login.html, paksa ke index.html
+            let target = nextPage;
+            if (target.includes('login.html')) target = 'index.html';
+
+            console.log('User sudah login, redirect ke', target);
+            window.location.href = target;
         })();
 
+        // Enter key submit
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                if (document.getElementById('formLogin').style.display !== 'none') {
-                    doLogin();
-                } else {
-                    doRegister();
-                }
-            }
+            if (e.key !== 'Enter') return;
+            const isLoginTab = document.getElementById('formLogin').style.display !== 'none';
+            if (isLoginTab) doLogin();
+            else doRegister();
         });
     </script>
 </body>
