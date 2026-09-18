@@ -320,7 +320,6 @@
             document.getElementById('pageTitle').textContent = mode === 'topup' ? '📥 TOP UP' : '📤 TARIK SALDO';
         }
 
-        // Tanpa bonus — top up murni
         function updateTopupSummary() {
             document.getElementById('topupAmountDisplay').textContent = FB.formatRp(state.topupAmount);
             document.getElementById('topupMethodDisplay').textContent = state.topupMethod;
@@ -533,12 +532,15 @@
         (async function init() {
             FB.registerSW();
 
-            const user = await FB.requireAuth('pembayaran.html');
+            console.log('=== INIT pembayaran.html ===');
+            const user = await FB.requireAuth('pembayaran.html' + window.location.search);
             if (!user) return;
             currentUser = user;
+            console.log('✅ Login sebagai:', user.uid, user.email);
 
             const data = await FB.getUserData(user.uid);
             if (!data) {
+                console.error('User data tidak ditemukan');
                 window.location.href = 'login.html';
                 return;
             }
