@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FFD700">
+    <link rel="manifest" href="manifest.json">
     <title>🔐 Login — Fruit Crush</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', sans-serif; }
@@ -35,7 +37,6 @@
             font-weight: 900;
         }
         .sub { text-align: center; color: #888; font-size: 0.8em; margin-bottom: 20px; }
-
         .tabs {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -59,7 +60,6 @@
             background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
             color: #333;
         }
-
         .form-group { margin-bottom: 14px; }
         .form-label {
             display: block;
@@ -85,7 +85,6 @@
             border-color: #00D4FF;
             box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
         }
-
         .btn {
             width: 100%;
             padding: 14px;
@@ -103,7 +102,6 @@
         }
         .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 215, 0, 0.4); }
         .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
         .alert {
             padding: 10px;
             border-radius: 10px;
@@ -116,8 +114,6 @@
         .alert.show { display: block; }
         .alert.error { background: rgba(255, 60, 60, 0.2); border: 1px solid #ff3c3c; color: #ff8888; }
         .alert.success { background: rgba(0, 184, 148, 0.2); border: 1px solid #00b894; color: #84fab0; }
-        .alert.info { background: rgba(0, 212, 255, 0.15); border: 1px solid #00D4FF; color: #88ddff; }
-
         .info {
             text-align: center;
             color: #888;
@@ -143,11 +139,11 @@
         <div id="formLogin">
             <div class="form-group">
                 <label class="form-label">Email</label>
-                <input type="email" class="form-input" id="loginEmail" placeholder="email@example.com">
+                <input type="email" class="form-input" id="loginEmail" placeholder="email@example.com" autocomplete="email">
             </div>
             <div class="form-group">
                 <label class="form-label">Password</label>
-                <input type="password" class="form-input" id="loginPass" placeholder="••••••••">
+                <input type="password" class="form-input" id="loginPass" placeholder="••••••••" autocomplete="current-password">
             </div>
             <button class="btn btn-primary" id="btnLogin" onclick="doLogin()">🔓 MASUK</button>
         </div>
@@ -155,15 +151,15 @@
         <div id="formRegister" style="display:none;">
             <div class="form-group">
                 <label class="form-label">Username</label>
-                <input type="text" class="form-input" id="regUsername" placeholder="username unik" maxlength="20">
+                <input type="text" class="form-input" id="regUsername" placeholder="username unik" maxlength="20" autocomplete="username">
             </div>
             <div class="form-group">
                 <label class="form-label">Email</label>
-                <input type="email" class="form-input" id="regEmail" placeholder="email@example.com">
+                <input type="email" class="form-input" id="regEmail" placeholder="email@example.com" autocomplete="email">
             </div>
             <div class="form-group">
                 <label class="form-label">Password (min 6)</label>
-                <input type="password" class="form-input" id="regPass" placeholder="••••••••">
+                <input type="password" class="form-input" id="regPass" placeholder="••••••••" autocomplete="new-password">
             </div>
             <button class="btn btn-primary" id="btnRegister" onclick="doRegister()">📝 DAFTAR</button>
         </div>
@@ -182,6 +178,9 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const nextPage = params.get('next') || 'index.html';
+
+        // Daftarkan Service Worker
+        FB.registerSW();
 
         function showAlert(msg, type = 'error') {
             const el = document.getElementById('alertBox');
@@ -223,6 +222,7 @@
                 else if (e.code === 'auth/wrong-password') msg = 'Password salah.';
                 else if (e.code === 'auth/invalid-email') msg = 'Format email tidak valid.';
                 else if (e.code === 'auth/too-many-requests') msg = 'Terlalu banyak percobaan. Coba lagi nanti.';
+                else if (e.code === 'auth/invalid-credential') msg = 'Email atau password salah.';
                 else msg += e.message;
                 showAlert(msg);
                 btn.disabled = false;
@@ -243,6 +243,10 @@
                 showAlert('Username minimal 3 karakter.');
                 return;
             }
+            if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+                showAlert('Username hanya boleh huruf, angka, dan underscore.');
+                return;
+            }
             if (pass.length < 6) {
                 showAlert('Password minimal 6 karakter.');
                 return;
@@ -253,6 +257,7 @@
             btn.textContent = '⏳ MENDAFTAR...';
 
             try {
+                // Cek username unik
                 const check = await FB.db.collection('users')
                     .where('username', '==', username).limit(1).get();
                 if (!check.empty) {
@@ -262,9 +267,11 @@
                     return;
                 }
 
+                // Buat akun Firebase Auth
                 const cred = await FB.auth.createUserWithEmailAndPassword(email, pass);
                 const uid = cred.user.uid;
 
+                // Simpan data user
                 await FB.db.collection('users').doc(uid).set({
                     uid,
                     username,
@@ -275,6 +282,7 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
+                // Log bonus
                 await FB.logTransaction({
                     uid,
                     username,
@@ -293,6 +301,7 @@
                 if (e.code === 'auth/email-already-in-use') msg = 'Email sudah terdaftar.';
                 else if (e.code === 'auth/invalid-email') msg = 'Format email tidak valid.';
                 else if (e.code === 'auth/weak-password') msg = 'Password terlalu lemah.';
+                else if (e.code === 'permission-denied') msg = 'Akses ditolak — cek Firestore rules.';
                 else msg += e.message;
                 showAlert(msg);
                 btn.disabled = false;
@@ -300,12 +309,14 @@
             }
         }
 
+        // Auto redirect kalau sudah login
         FB.auth.onAuthStateChanged((user) => {
             if (user) {
                 window.location.href = nextPage;
             }
         });
 
+        // Enter submit
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 if (document.getElementById('formLogin').style.display !== 'none') {
@@ -317,4 +328,4 @@
         });
     </script>
 </body>
-  </html>
+</html>
