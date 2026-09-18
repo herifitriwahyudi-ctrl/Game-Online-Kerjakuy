@@ -179,7 +179,6 @@
         const params = new URLSearchParams(window.location.search);
         const nextPage = params.get('next') || 'index.html';
 
-        // Daftarkan Service Worker
         FB.registerSW();
 
         function showAlert(msg, type = 'error') {
@@ -257,7 +256,6 @@
             btn.textContent = '⏳ MENDAFTAR...';
 
             try {
-                // Cek username unik
                 const check = await FB.db.collection('users')
                     .where('username', '==', username).limit(1).get();
                 if (!check.empty) {
@@ -267,11 +265,9 @@
                     return;
                 }
 
-                // Buat akun Firebase Auth
                 const cred = await FB.auth.createUserWithEmailAndPassword(email, pass);
                 const uid = cred.user.uid;
 
-                // Simpan data user
                 await FB.db.collection('users').doc(uid).set({
                     uid,
                     username,
@@ -282,7 +278,6 @@
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
-                // Log bonus
                 await FB.logTransaction({
                     uid,
                     username,
@@ -309,14 +304,12 @@
             }
         }
 
-        // Auto redirect kalau sudah login
         FB.auth.onAuthStateChanged((user) => {
             if (user) {
                 window.location.href = nextPage;
             }
         });
 
-        // Enter submit
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
                 if (document.getElementById('formLogin').style.display !== 'none') {
