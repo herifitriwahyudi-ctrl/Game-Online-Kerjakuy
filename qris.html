@@ -339,7 +339,6 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const amount = parseInt(params.get('amount')) || 0;
-        const bonus = parseInt(params.get('bonus')) || 0;
         const method = params.get('method') || 'QRIS';
         const urlUid = params.get('uid') || null;
 
@@ -406,7 +405,6 @@
                 return;
             }
 
-            // ⚠️ AMBIL UID FRESH — jangan pakai cached variable
             const user = FB.auth.currentUser;
             if (!user) {
                 toast('❌ Sesi login habis, silakan login ulang', 'error');
@@ -414,69 +412,66 @@
                 return;
             }
 
-            // ⚠️ Validasi UID dari URL dengan UID yang login — cegah mismatch
             if (urlUid && urlUid !== user.uid) {
-                console.error('UID mismatch! urlUid:', urlUid, 'user.uid:', user.uid);
-                toast('❌ Terjadi kesalahan: user mismatch. Silakan ulangi.', 'error');
+                console.error('UID mismatch!', urlUid, '!==', user.uid);
+                toast('❌ User mismatch. Silakan ulangi.', 'error');
                 setTimeout(() => window.location.href = 'pembayaran.html?mode=topup', 2000);
                 return;
             }
 
             const targetUid = user.uid;
-
             const btn = document.getElementById('btnConfirm');
             btn.disabled = true;
-            btn.textContent = '⏳ Memverifikasi...';
+            btn.textContent = '⏳ Mengirim...';
 
             try {
-                // Ambil data user fresh dari server
                 const freshData = await FB.getUserData(targetUid);
-                if (!freshData) {
-                    throw new Error('User tidak ditemukan di database');
-                }
+                if (!freshData) throw new Error('User tidak ditemukan');
 
-                const total = amount + bonus;
+                console.log('=== TOP UP QRIS (PENDING) ===');
+                console.log('UID:', targetUid, '| User:', freshData.username, '| Nominal:', amount);
 
-                // ⚠️ Double-check log
-                console.log('=== TOP UP QRIS ===');
-                console.log('UID target:', targetUid);
-                console.log('Username:', freshData.username);
-                console.log('Saldo sebelum:', freshData.balance);
-                console.log('Nominal:', total);
+                await FB.db.collection('topups').add({
+                    uid: targetUid,
+                    username: freshData.username,
+                    amount: amount,
+                    total: amount,
+                    method: 'QRIS',
+                    status: 'pending',
+                    time: firebase.firestore.FieldValue.serverTimestamp()
+                });
 
-                // Update saldo
-                await FB.updateBalance(targetUid, total);
-
-                // Log transaksi
-                await FB.logTransaction({
+                await FB.db.collection('transactions').add({
                     uid: targetUid,
                     username: freshData.username,
                     type: 'topup',
-                    amount: total,
-                    note: 'Top up via QRIS',
-                    extra: { amount, bonus, method: 'QRIS' }
+                    amount: amount,
+                    note: 'Top up via QRIS (menunggu approve admin)',
+                    extra: { amount, method: 'QRIS', status: 'pending' },
+                    status: 'pending',
+                    time: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
                 paid = true;
                 clearInterval(timerInterval);
 
-                // Overlay sukses
                 const overlay = document.getElementById('qrOverlay');
                 overlay.classList.add('show', 'success');
-                document.getElementById('overlayIcon').textContent = '✅';
-                document.getElementById('overlayTitle').textContent = 'Pembayaran Berhasil!';
-                document.getElementById('overlayDesc').textContent = `Saldo +${FB.formatRp(total)} untuk akun ${freshData.username}`;
+                document.getElementById('overlayIcon').textContent = '⏳';
+                document.getElementById('overlayTitle').textContent = 'Menunggu Konfirmasi Admin';
+                document.getElementById('overlayDesc').innerHTML =
+                    `Pembayaran Rp ${amount.toLocaleString('id-ID')} sedang diverifikasi admin.<br>` +
+                    `Saldo akan ditambahkan setelah disetujui.`;
 
-                toast(`✅ Pembayaran berhasil! Saldo +${FB.formatRp(total)}`, 'success');
-
-                btn.textContent = '✅ BERHASIL';
+                toast('⏳ Pembayaran dikirim. Menunggu approve admin.', 'info');
+                btn.textContent = '⏳ MENUNGGU ADMIN';
 
                 setTimeout(() => {
                     window.location.href = 'index.html';
-                }, 2500);
+                }, 4000);
             } catch (e) {
                 console.error('❌ confirmPaid error:', e);
-                toast('❌ Verifikasi gagal: ' + e.message, 'error');
+                toast('❌ Gagal: ' + e.message, 'error');
                 btn.disabled = false;
                 btn.textContent = '✅ SAYA SUDAH BAYAR';
             }
@@ -493,7 +488,6 @@
             }
         }
 
-        // ===== INIT =====
         (async function init() {
             FB.registerSW();
 
@@ -501,7 +495,6 @@
             if (!user) return;
             currentUid = user.uid;
 
-            // Cek URL uid kalau ada
             if (urlUid && urlUid !== user.uid) {
                 toast('⚠️ URL UID tidak cocok dengan user login', 'error');
                 setTimeout(() => window.location.href = 'pembayaran.html?mode=topup', 2000);
@@ -516,21 +509,15 @@
                 return;
             }
 
-            // Ambil data user untuk tampilan
             const userData = await FB.getUserData(currentUid);
             if (userData) {
                 document.getElementById('userTag').innerHTML =
                     `👤 Pembayaran untuk: <b>${userData.username}</b>`;
             }
 
-            document.getElementById('amountDisplay').textContent = FB.formatRp(amount + bonus);
-            document.getElementById('stepAmount').textContent = FB.formatRp(amount + bonus);
-
-            const detail = [];
-            detail.push(`Nominal: ${FB.formatRp(amount)}`);
-            if (bonus > 0) detail.push(`<b>+Bonus: ${FB.formatRp(bonus)}</b>`);
-            detail.push(`Metode: ${method}`);
-            document.getElementById('amountDetail').innerHTML = detail.join(' • ');
+            document.getElementById('amountDisplay').textContent = FB.formatRp(amount);
+            document.getElementById('stepAmount').textContent = FB.formatRp(amount);
+            document.getElementById('amountDetail').innerHTML = `Nominal: ${FB.formatRp(amount)}`;
 
             startTimer();
         })();
