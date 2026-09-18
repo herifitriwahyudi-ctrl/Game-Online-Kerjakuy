@@ -491,9 +491,11 @@
         (async function init() {
             FB.registerSW();
 
-            const user = await FB.requireAuth('qris.html');
+            console.log('=== INIT qris.html ===');
+            const user = await FB.requireAuth('qris.html' + window.location.search);
             if (!user) return;
             currentUid = user.uid;
+            console.log('✅ Login sebagai:', user.uid, user.email);
 
             if (urlUid && urlUid !== user.uid) {
                 toast('⚠️ URL UID tidak cocok dengan user login', 'error');
