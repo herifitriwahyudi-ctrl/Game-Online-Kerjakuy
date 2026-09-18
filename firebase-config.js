@@ -13,7 +13,6 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Persistensi offline — aman untuk multi-tab
 db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
     if (err.code === 'failed-precondition') {
         console.warn('Persistence failed: multiple tabs open');
@@ -26,7 +25,6 @@ window.FB = {
     auth,
     db,
 
-    // ===== AUTH =====
     requireAuth(redirectTo) {
         return new Promise((resolve) => {
             const unsub = auth.onAuthStateChanged((user) => {
@@ -42,7 +40,6 @@ window.FB = {
         });
     },
 
-    // ===== USER DATA =====
     async getUserData(uid) {
         try {
             const doc = await db.collection('users').doc(uid).get();
@@ -53,12 +50,10 @@ window.FB = {
         }
     },
 
-    // ===== BALANCE (atomic increment) =====
     async updateBalance(uid, delta) {
         if (!uid) throw new Error('UID wajib diisi');
         if (typeof delta !== 'number' || isNaN(delta)) throw new Error('Delta tidak valid');
 
-        // Validasi UID aktif — cegah salah user
         const currentUid = auth.currentUser ? auth.currentUser.uid : null;
         if (!currentUid) throw new Error('User tidak login');
         if (currentUid !== uid) {
@@ -81,11 +76,9 @@ window.FB = {
         });
     },
 
-    // ===== TRANSACTION LOG =====
     async logTransaction({ uid, username, type, amount, note, extra }) {
         if (!uid) throw new Error('UID wajib untuk log transaksi');
 
-        // Validasi UID aktif
         const currentUid = auth.currentUser ? auth.currentUser.uid : null;
         if (!currentUid) throw new Error('User tidak login');
         if (currentUid !== uid) {
@@ -104,7 +97,6 @@ window.FB = {
         });
     },
 
-    // ===== HELPERS =====
     formatRp(n) {
         return 'Rp ' + Math.round(n).toLocaleString('id-ID');
     },
@@ -115,7 +107,6 @@ window.FB = {
 
     async logout() {
         await auth.signOut();
-        // Hapus cache service worker
         if ('caches' in window) {
             const names = await caches.keys();
             await Promise.all(names.map(n => caches.delete(n)));
@@ -123,7 +114,6 @@ window.FB = {
         window.location.href = 'login.html';
     },
 
-    // ===== SERVICE WORKER =====
     registerSW() {
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
