@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔐 Admin Panel — Fruit Crush</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, #FF66FF 0%, #FFD700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+        }
+        .sub { text-align: center; color: #888; font-size: 0.85em; margin-bottom: 25px; }
+
+        .login-box {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 400px;
+            margin: 60px auto;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.8), 0 0 0 3px rgba(255, 0, 255, 0.3);
+            border: 2px solid rgba(255, 100, 255, 0.4);
+        }
+        .login-box h2 { text-align: center; margin-bottom: 20px; color: #FF66FF; }
+        .login-input {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255, 100, 255, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            color: white;
+            font-size: 1em;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .login-input:focus { border-color: #FF66FF; }
+        .login-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #FF66FF 0%, #FF00AA 100%);
+            color: white;
+            font-weight: bold;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .login-btn:hover { transform: translateY(-2px); }
+
+        .dashboard { display: none; }
+        .dashboard.show { display: block; }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .header-bar .user {
+            background: rgba(255, 100, 255, 0.15);
+            border: 1px solid rgba(255, 100, 255, 0.4);
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-size: 0.85em;
+        }
+        .header-bar .user b { color: #FF66FF; }
+        .logout-btn {
+            background: linear-gradient(135deg, #e17055 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85em;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 14px;
+            padding: 18px;
+            border: 2px solid rgba(0, 212, 255, 0.25);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+        }
+        .stat-card .label {
+            font-size: 0.7em;
+            color: #00D4FF;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 6px;
+        }
+        .stat-card .value { font-size: 1.8em; font-weight: 900; color: #FFD700; }
+        .stat-card .value.small { font-size: 1.2em; }
+        .stat-card.pending .value { color: #ffaa00; }
+        .stat-card.success .value { color: #84fab0; }
+        .stat-card.danger .value { color: #ff6666; }
+
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.3);
+            padding: 5px;
+            border-radius: 12px;
+            overflow-x: auto;
+        }
+        .tab {
+            flex: 1;
+            min-width: 120px;
+            padding: 10px 12px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.8em;
+            color: #888;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .tab.active { background: linear-gradient(135deg, #FF66FF 0%, #FF00AA 100%); color: white; }
+
+        .panel {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 14px;
+            padding: 18px;
+            border: 2px solid rgba(255, 100, 255, 0.2);
+            margin-bottom: 15px;
+        }
+        .panel h3 { color: #FF66FF; margin-bottom: 12px; font-size: 1.1em; }
+
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.82em; }
+        th {
+            background: rgba(0, 212, 255, 0.12);
+            color: #00D4FF;
+            padding: 10px 8px;
+            text-align: left;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            white-space: nowrap;
+        }
+        tr:hover td { background: rgba(255,255,255,0.03); }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.7em;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .badge.pending { background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00; }
+        .badge.success { background: rgba(132, 250, 176, 0.2); color: #84fab0; border: 1px solid #84fab0; }
+        .badge.rejected { background: rgba(255, 100, 100, 0.2); color: #ff6666; border: 1px solid #ff6666; }
+        .badge.topup { background: rgba(0, 184, 148, 0.2); color: #00b894; border: 1px solid #00b894; }
+        .badge.withdraw { background: rgba(225, 112, 85, 0.2); color: #e17055; border: 1px solid #e17055; }
+        .badge.bet { background: rgba(255, 200, 0, 0.15); color: #ffc800; border: 1px solid #ffc800; }
+        .badge.win { background: rgba(132, 250, 176, 0.15); color: #84fab0; border: 1px solid #84fab0; }
+        .badge.bonus { background: rgba(255, 100, 255, 0.15); color: #FF66FF; border: 1px solid #FF66FF; }
+
+        .btn-sm {
+            padding: 5px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-right: 4px;
+        }
+        .btn-approve { background: #00b894; color: white; }
+        .btn-reject { background: #c0392b; color: white; }
+        .btn-sm:hover { opacity: 0.85; }
+
+        .empty { text-align: center; color: #666; padding: 30px; font-style: italic; }
+        .action-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+        .search-box {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 10px;
+            padding: 10px;
+            color: white;
+            font-size: 0.9em;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .search-box:focus { border-color: #00D4FF; }
+
+        .filter-row { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+        .filter-btn {
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #ccc;
+            cursor: pointer;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+        .filter-btn.active {
+            background: linear-gradient(135deg, #00D4FF 0%, #0099CC 100%);
+            color: white;
+            border-color: #00D4FF;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            color: white;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            z-index: 999;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+        }
+        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast.error { background: linear-gradient(135deg, #e17055 0%, #c0392b 100%); }
+
+        @media (max-width: 500px) {
+            h1 { font-size: 1.4em; }
+            .stat-card .value { font-size: 1.3em; }
+            td, th { padding: 8px 5px; font-size: 0.72em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 ADMIN PANEL</h1>
+        <div class="sub">Fruit Crush Special — Manajemen User & Transaksi</div>
+
+        <div class="login-box" id="loginBox">
+            <h2>🔒 Login Admin</h2>
+            <input type="email" class="login-input" id="adminUser" placeholder="admin@fruitcrush.com">
+            <input type="password" class="login-input" id="adminPass" placeholder="Password">
+            <button class="login-btn" onclick="doLogin()">MASUK</button>
+            <div style="text-align:center;color:#888;font-size:0.75em;margin-top:12px;">
+                Gunakan akun dengan <b>role: admin</b> di Firestore
+            </div>
+        </div>
+
+        <div class="dashboard" id="dashboard">
+            <div class="header-bar">
+                <div class="user">👤 Login sebagai: <b id="currentAdmin">-</b></div>
+                <button class="logout-btn" onclick="doLogout()">🚪 LOGOUT</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="label">💰 Total Saldo User</div>
+                    <div class="value small" id="statBalance">Rp 0</div>
+                </div>
+                <div class="stat-card pending">
+                    <div class="label">⏳ Pending Withdraw</div>
+                    <div class="value" id="statPending">0</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="label">✅ Top Up Sukses</div>
+                    <div class="value" id="statTopup">0</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="label">📤 Withdraw Sukses</div>
+                    <div class="value" id="statWithdraw">0</div>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('pending')">⏳ PENDING</div>
+                <div class="tab" onclick="switchTab('history')">📜 RIWAYAT</div>
+                <div class="tab" onclick="switchTab('users')">👥 USER</div>
+            </div>
+
+            <div class="panel" id="panelPending">
+                <h3>⏳ Permintaan Withdraw Menunggu Konfirmasi</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>User</th>
+                                <th>Nominal</th>
+                                <th>Fee</th>
+                                <th>Metode</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingBody"></tbody>
+                    </table>
+                </div>
+                <div class="empty" id="pendingEmpty">Tidak ada permintaan pending.</div>
+            </div>
+
+            <div class="panel" id="panelHistory" style="display:none;">
+                <h3>📜 Riwayat Transaksi</h3>
+                <input type="text" class="search-box" id="searchHistory" placeholder="🔍 Cari username atau ID..." oninput="renderHistory()">
+                <div class="filter-row">
+                    <button class="filter-btn active" onclick="setFilter('all', this)">SEMUA</button>
+                    <button class="filter-btn" onclick="setFilter('topup', this)">TOP UP</button>
+                    <button class="filter-btn" onclick="setFilter('withdraw', this)">WITHDRAW</button>
+                    <button class="filter-btn" onclick="setFilter('bet', this)">BET</button>
+                    <button class="filter-btn" onclick="setFilter('win', this)">WIN</button>
+                    <button class="filter-btn" onclick="setFilter('bonus', this)">BONUS</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>ID</th>
+                                <th>User</th>
+                                <th>Tipe</th>
+                                <th>Nominal</th>
+                                <th>Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody"></tbody>
+                    </table>
+                </div>
+                <div class="empty" id="historyEmpty">Belum ada transaksi.</div>
+            </div>
+
+            <div class="panel" id="panelUsers" style="display:none;">
+                <h3>👥 Daftar User Terdaftar</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Username</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Saldo</th>
+                                <th>Terdaftar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersBody"></tbody>
+                    </table>
+                </div>
+                <div class="empty" id="usersEmpty">Belum ada user terdaftar.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        let adminUser = null;
+        let currentTab = 'pending';
+        let currentFilter = 'all';
+        let unsubscribeWithdrawals = null;
+        let unsubscribeTx = null;
+        let unsubscribeUsers = null;
+
+        // ===== LOGIN =====
+        async function doLogin() {
+            const email = document.getElementById('adminUser').value.trim();
+            const pass = document.getElementById('adminPass').value;
+
+            if (!email || !pass) { toast('Email & password wajib diisi', true); return; }
+
+            try {
+                const cred = await FB.auth.signInWithEmailAndPassword(email, pass);
+                const data = await FB.getUserData(cred.user.uid);
+                if (!data || data.role !== 'admin') {
+                    await FB.auth.signOut();
+                    toast('❌ Akun ini bukan admin', true);
+                    return;
+                }
+                adminUser = cred.user;
+                showDashboard();
+                toast('✅ Login admin berhasil');
+            } catch (e) {
+                console.error(e);
+                toast('❌ Email atau password salah', true);
+            }
+        }
+
+        async function doLogout() {
+            if (unsubscribeWithdrawals) unsubscribeWithdrawals();
+            if (unsubscribeTx) unsubscribeTx();
+            if (unsubscribeUsers) unsubscribeUsers();
+            await FB.auth.signOut();
+            window.location.reload();
+        }
+
+        function showDashboard() {
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('dashboard').classList.add('show');
+            document.getElementById('currentAdmin').textContent = adminUser.email;
+            setupListeners();
+        }
+
+        // ===== LISTENERS =====
+        function setupListeners() {
+            unsubscribeWithdrawals = FB.db.collection('withdrawals')
+                .orderBy('time', 'desc').limit(100)
+                .onSnapshot((snap) => {
+                    const list = [];
+                    snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+                    renderPending(list);
+                });
+
+            unsubscribeTx = FB.db.collection('transactions')
+                .orderBy('time', 'desc').limit(200)
+                .onSnapshot((snap) => {
+                    const list = [];
+                    snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+                    window._txList = list;
+                    renderHistory();
+                    updateStats();
+                });
+
+            unsubscribeUsers = FB.db.collection('users')
+                .orderBy('createdAt', 'desc').limit(200)
+                .onSnapshot((snap) => {
+                    const list = [];
+                    snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+                    window._usersList = list;
+                    renderUsers(list);
+                    updateStats();
+                });
+        }
+
+        // ===== PENDING =====
+        function renderPending(list) {
+            const pending = list.filter(p => p.status === 'pending');
+            const body = document.getElementById('pendingBody');
+            const empty = document.getElementById('pendingEmpty');
+
+            if (pending.length === 0) {
+                body.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            body.innerHTML = pending.map(p => `
+                <tr>
+                    <td>${formatTime(p.time)}</td>
+                    <td><b>${p.username || p.uid}</b></td>
+                    <td>${FB.formatRp(p.amount)}</td>
+                    <td style="color:#ff8888">-${FB.formatRp(p.fee || 0)}</td>
+                    <td>${p.method}<br><small style="color:#888">${p.account || '-'}</small></td>
+                    <td><span class="badge pending">PENDING</span></td>
+                    <td>
+                        <div class="action-row">
+                            <button class="btn-sm btn-approve" onclick="approveWithdraw('${p.id}')">✓ Approve</button>
+                            <button class="btn-sm btn-reject" onclick="rejectWithdraw('${p.id}')">✗ Reject</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function approveWithdraw(id) {
+            try {
+                await FB.db.collection('withdrawals').doc(id).update({
+                    status: 'success',
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedBy: adminUser.email
+                });
+                toast('✅ Withdraw disetujui');
+            } catch (e) {
+                console.error(e);
+                toast('❌ Gagal approve', true);
+            }
+        }
+
+        async function rejectWithdraw(id) {
+            if (!confirm('Tolak withdraw ini? Saldo akan dikembalikan ke user.')) return;
+            try {
+                const doc = await FB.db.collection('withdrawals').doc(id).get();
+                if (!doc.exists) return;
+                const data = doc.data();
+
+                await FB.updateBalance(data.uid, data.amount);
+
+                await FB.db.collection('withdrawals').doc(id).update({
+                    status: 'rejected',
+                    rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    rejectedBy: adminUser.email
+                });
+
+                toast('↩️ Withdraw ditolak, saldo dikembalikan');
+            } catch (e) {
+                console.error(e);
+                toast('❌ Gagal reject', true);
+            }
+        }
+
+        // ===== STATS =====
+        function updateStats() {
+            const list = window._txList || [];
+            const users = window._usersList || [];
+
+            let totalBalance = 0;
+            users.forEach(u => totalBalance += (u.balance || 0));
+
+            const topupCount = list.filter(t => t.type === 'topup').length;
+            const withdrawCount = list.filter(t => t.type === 'withdraw').length;
+
+            document.getElementById('statBalance').textContent = FB.formatRp(totalBalance);
+
+            // Pending count dari badge
+            const pendingCount = document.querySelectorAll('#pendingBody tr').length;
+            document.getElementById('statPending').textContent = pendingCount;
+            document.getElementById('statTopup').textContent = topupCount;
+            document.getElementById('statWithdraw').textContent = withdrawCount;
+        }
+
+        // ===== HISTORY =====
+        function setFilter(f, btn) {
+            currentFilter = f;
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const search = (document.getElementById('searchHistory').value || '').toLowerCase();
+            let list = window._txList || [];
+
+            if (currentFilter !== 'all') {
+                list = list.filter(t => t.type === currentFilter);
+            }
+            if (search) {
+                list = list.filter(t =>
+                    (t.username || '').toLowerCase().includes(search) ||
+                    (t.id || '').toLowerCase().includes(search)
+                );
+            }
+
+            const body = document.getElementById('historyBody');
+            const empty = document.getElementById('historyEmpty');
+
+            if (list.length === 0) {
+                body.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            body.innerHTML = list.map(t => {
+                const amountColor = t.amount >= 0 ? '#84fab0' : '#ff8888';
+                return `
+                    <tr>
+                        <td>${formatTime(t.time)}</td>
+                        <td><small style="color:#888">${(t.id || '').substring(0, 10)}</small></td>
+                        <td><b>${t.username || '-'}</b></td>
+                        <td><span class="badge ${t.type}">${t.type.toUpperCase()}</span></td>
+                        <td style="color:${amountColor};font-weight:bold">${t.amount >= 0 ? '+' : ''}${FB.formatRp(t.amount)}</td>
+                        <td>${t.note || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // ===== USERS =====
+        function renderUsers(list) {
+            const body = document.getElementById('usersBody');
+            const empty = document.getElementById('usersEmpty');
+
+            if (list.length === 0) {
+                body.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            body.innerHTML = list.map(u => `
+                <tr>
+                    <td><b>${u.username || '-'}</b></td>
+                    <td><small>${u.email || ''}</small></td>
+                    <td>${u.role || 'user'}</td>
+                    <td style="color:#FFD700;font-weight:bold">${FB.formatRp(u.balance || 0)}</td>
+                    <td>${u.createdAt ? formatTime(u.createdAt.toDate ? u.createdAt.toDate() : u.createdAt) : '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        // ===== HELPERS =====
+        function formatTime(ts) {
+            if (!ts) return '-';
+            let d;
+            if (ts.toDate) d = ts.toDate();
+            else d = new Date(ts);
+            return d.toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function toast(msg, isError = false) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'toast show' + (isError ? ' error' : '');
+            clearTimeout(el._t);
+            el._t = setTimeout(() => el.classList.remove('show'), 3000);
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach((t, i) => {
+                t.classList.toggle('active',
+                    (tab === 'pending' && i === 0) ||
+                    (tab === 'history' && i === 1) ||
+                    (tab === 'users' && i === 2)
+                );
+            });
+            document.getElementById('panelPending').style.display = tab === 'pending' ? 'block' : 'none';
+            document.getElementById('panelHistory').style.display = tab === 'history' ? 'block' : 'none';
+            document.getElementById('panelUsers').style.display = tab === 'users' ? 'block' : 'none';
+        }
+
+        // ===== AUTO-LOGIN =====
+        FB.auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                const data = await FB.getUserData(user.uid);
+                if (data && data.role === 'admin') {
+                    adminUser = user;
+                    showDashboard();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
