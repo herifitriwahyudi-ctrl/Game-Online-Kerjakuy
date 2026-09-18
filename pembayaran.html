@@ -213,22 +213,10 @@
             <div class="grid" id="topupGrid">
                 <div class="option topup-option" data-amount="5000"><span class="amount">5,000</span></div>
                 <div class="option topup-option" data-amount="10000"><span class="amount">10,000</span></div>
-                <div class="option topup-option" data-amount="25000">
-                    <span class="amount">25,000</span>
-                    <span class="bonus">+5% Bonus</span>
-                </div>
-                <div class="option topup-option" data-amount="50000">
-                    <span class="amount">50,000</span>
-                    <span class="bonus">+10% Bonus</span>
-                </div>
-                <div class="option topup-option" data-amount="100000">
-                    <span class="amount">100,000</span>
-                    <span class="bonus">+15% Bonus</span>
-                </div>
-                <div class="option topup-option" data-amount="500000">
-                    <span class="amount">500,000</span>
-                    <span class="bonus">+25% Bonus</span>
-                </div>
+                <div class="option topup-option" data-amount="25000"><span class="amount">25,000</span></div>
+                <div class="option topup-option" data-amount="50000"><span class="amount">50,000</span></div>
+                <div class="option topup-option" data-amount="100000"><span class="amount">100,000</span></div>
+                <div class="option topup-option" data-amount="500000"><span class="amount">500,000</span></div>
             </div>
 
             <input type="number" class="custom-input" id="topupCustom" placeholder="Nominal lain (min 1,000)" min="1000">
@@ -242,9 +230,8 @@
 
             <div class="summary">
                 <div class="summary-row"><span>Nominal</span><span id="topupAmountDisplay">Rp 0</span></div>
-                <div class="summary-row"><span>Bonus</span><span id="topupBonusDisplay">Rp 0</span></div>
                 <div class="summary-row"><span>Metode</span><span id="topupMethodDisplay">QRIS</span></div>
-                <div class="summary-row total"><span>Total Diterima</span><span class="value" id="topupTotalDisplay">Rp 0</span></div>
+                <div class="summary-row total"><span>Total Bayar</span><span class="value" id="topupTotalDisplay">Rp 0</span></div>
             </div>
 
             <button class="btn btn-primary" id="btnConfirmTopup" onclick="confirmTopup()">💳 KONFIRMASI TOP UP</button>
@@ -294,7 +281,6 @@
     <script src="firebase-config.js"></script>
 
     <script>
-        // ===== STATE =====
         let currentUser = null;
         let currentUserData = null;
         let unsubscribeUser = null;
@@ -308,7 +294,6 @@
             withdrawMethod: 'Bank'
         };
 
-        // ===== HELPERS =====
         function getActiveUid() {
             return FB.auth.currentUser ? FB.auth.currentUser.uid : null;
         }
@@ -335,21 +320,11 @@
             document.getElementById('pageTitle').textContent = mode === 'topup' ? '📥 TOP UP' : '📤 TARIK SALDO';
         }
 
-        function calcBonus(amount) {
-            if (amount === 25000) return Math.floor(amount * 0.05);
-            if (amount === 50000) return Math.floor(amount * 0.10);
-            if (amount === 100000) return Math.floor(amount * 0.15);
-            if (amount === 500000) return Math.floor(amount * 0.25);
-            return 0;
-        }
-
+        // Tanpa bonus — top up murni
         function updateTopupSummary() {
-            const bonus = calcBonus(state.topupAmount);
-            const total = state.topupAmount + bonus;
             document.getElementById('topupAmountDisplay').textContent = FB.formatRp(state.topupAmount);
-            document.getElementById('topupBonusDisplay').textContent = FB.formatRp(bonus);
             document.getElementById('topupMethodDisplay').textContent = state.topupMethod;
-            document.getElementById('topupTotalDisplay').textContent = FB.formatRp(total);
+            document.getElementById('topupTotalDisplay').textContent = FB.formatRp(state.topupAmount);
         }
 
         function updateWithdrawSummary() {
@@ -361,7 +336,6 @@
             document.getElementById('withdrawTotalDisplay').textContent = FB.formatRp(total);
         }
 
-        // ===== EVENTS =====
         document.querySelectorAll('#topupGrid .option').forEach(el => {
             el.addEventListener('click', () => {
                 document.querySelectorAll('#topupGrid .option').forEach(o => o.classList.remove('selected'));
@@ -416,7 +390,6 @@
             });
         });
 
-        // ===== TOPUP =====
         function confirmTopup() {
             const uid = getActiveUid();
             if (!uid) {
@@ -429,41 +402,54 @@
                 return;
             }
 
-            const bonus = calcBonus(state.topupAmount);
-
-            // QRIS → redirect ke halaman qris dengan UID eksplisit
             if (state.topupMethod === 'QRIS') {
-                window.location.href = `qris.html?amount=${state.topupAmount}&bonus=${bonus}&method=QRIS&uid=${uid}`;
+                window.location.href = `qris.html?amount=${state.topupAmount}&method=QRIS&uid=${uid}`;
                 return;
             }
 
-            // Bank / E-Wallet — proses langsung
-            const total = state.topupAmount + bonus;
             const btn = document.getElementById('btnConfirmTopup');
             btn.disabled = true;
-            btn.textContent = '⏳ MEMPROSES...';
+            btn.textContent = '⏳ MENGIRIM...';
 
             (async () => {
                 try {
-                    // Ambil data user fresh
                     const freshData = await FB.getUserData(uid);
                     if (!freshData) throw new Error('User tidak ditemukan');
 
-                    console.log('💰 Top up:', uid, freshData.username, '+', total);
+                    console.log('=== TOP UP PENDING ===');
+                    console.log('UID:', uid, '| User:', freshData.username, '| Nominal:', state.topupAmount);
 
-                    await FB.updateBalance(uid, total);
-
-                    await FB.logTransaction({
-                        uid,
+                    await FB.db.collection('topups').add({
+                        uid: uid,
                         username: freshData.username,
-                        type: 'topup',
-                        amount: total,
-                        note: `Top up via ${state.topupMethod}`,
-                        extra: { amount: state.topupAmount, bonus, method: state.topupMethod }
+                        amount: state.topupAmount,
+                        total: state.topupAmount,
+                        method: state.topupMethod,
+                        status: 'pending',
+                        time: firebase.firestore.FieldValue.serverTimestamp()
                     });
 
-                    showAlert(`✅ Top up berhasil! Saldo +${FB.formatRp(total)}`, 'success');
-                    setTimeout(() => window.location.href = 'index.html', 1500);
+                    await FB.db.collection('transactions').add({
+                        uid: uid,
+                        username: freshData.username,
+                        type: 'topup',
+                        amount: state.topupAmount,
+                        note: `Top up via ${state.topupMethod} (menunggu approve admin)`,
+                        extra: {
+                            amount: state.topupAmount,
+                            method: state.topupMethod,
+                            status: 'pending'
+                        },
+                        status: 'pending',
+                        time: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    showAlert(
+                        `⏳ Top up ${FB.formatRp(state.topupAmount)} dikirim. Menunggu approve admin.`,
+                        'success'
+                    );
+
+                    setTimeout(() => window.location.href = 'index.html', 2500);
                 } catch (e) {
                     console.error(e);
                     showAlert('❌ Gagal: ' + e.message, 'error');
@@ -473,7 +459,6 @@
             })();
         }
 
-        // ===== WITHDRAW =====
         async function confirmWithdraw() {
             const uid = getActiveUid();
             if (!uid) {
@@ -545,7 +530,6 @@
             }
         }
 
-        // ===== INIT =====
         (async function init() {
             FB.registerSW();
 
@@ -588,4 +572,4 @@
         })();
     </script>
 </body>
-    </html>
+</html>
