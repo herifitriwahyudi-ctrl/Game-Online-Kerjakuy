@@ -13,6 +13,7 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Persistensi offline — penting supaya session tetap ada saat pindah halaman
 db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
     if (err.code === 'failed-precondition') {
         console.warn('Persistence failed: multiple tabs open');
@@ -25,19 +26,49 @@ window.FB = {
     auth,
     db,
 
-    requireAuth(redirectTo) {
+    // ⚠️ FUNGSI BARU: Tunggu sampai Firebase Auth selesai load session
+    // Ini penting supaya tidak fire redirect ke login padahal user sudah login
+    waitForAuth() {
         return new Promise((resolve) => {
+            // Kalau Firebase sudah selesai load state, currentUser bisa null atau user
+            // Kita pakai trick: cek apakah auth._isInitialized (internal Firebase)
+            if (auth.currentUser !== undefined && auth.currentUser !== null) {
+                console.log('✅ waitForAuth: user sudah ada di memory');
+                resolve(auth.currentUser);
+                return;
+            }
+
+            // Kalau belum, tunggu event pertama
+            let resolved = false;
             const unsub = auth.onAuthStateChanged((user) => {
+                if (resolved) return;
+                resolved = true;
                 unsub();
-                if (!user) {
-                    const next = redirectTo || window.location.pathname.split('/').pop();
-                    window.location.href = 'login.html?next=' + encodeURIComponent(next);
-                    resolve(null);
-                } else {
-                    resolve(user);
-                }
+                console.log('✅ waitForAuth: resolved dengan', user ? user.uid : 'null');
+                resolve(user);
             });
+
+            // Fallback timeout 5 detik — kalau Firebase hang
+            setTimeout(() => {
+                if (resolved) return;
+                resolved = true;
+                unsub();
+                console.warn('⚠️ waitForAuth: timeout, resolve dengan currentUser');
+                resolve(auth.currentUser);
+            }, 5000);
         });
+    },
+
+    // ⚠️ requireAuth diperbaiki — pakai waitForAuth
+    async requireAuth(redirectTo) {
+        const user = await this.waitForAuth();
+        if (!user) {
+            const next = redirectTo || (window.location.pathname.split('/').pop() + window.location.search);
+            console.log('❌ Not authenticated, redirect to login. Next:', next);
+            window.location.href = 'login.html?next=' + encodeURIComponent(next);
+            return null;
+        }
+        return user;
     },
 
     async getUserData(uid) {
