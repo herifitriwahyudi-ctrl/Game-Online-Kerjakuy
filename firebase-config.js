@@ -13,12 +13,52 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// Persistensi offline — penting supaya session tetap ada saat pindah halaman
-db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-    if (err.code === 'failed-precondition') {
-        console.warn('Persistence failed: multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-        console.warn('Persistence not available');
+// ===== OFFLINE PERSISTENCE (sekali saja) =====
+let _persistenceEnabled = false;
+(function enablePersistence() {
+    if (_persistenceEnabled) return;
+    _persistenceEnabled = true;
+    db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+        if (err.code === 'failed-precondition') {
+            console.warn('⚠️ Persistence failed: multiple tabs open');
+        } else if (err.code === 'unimplemented') {
+            console.warn('⚠️ Persistence not available');
+        }
+    });
+})();
+
+// ===== AUTH STATE CACHE (SINGLE SOURCE OF TRUTH) =====
+// undefined = belum tahu, null = logged out, object = logged in
+let _cachedUser = undefined;
+let _authReadyPromise = null;
+
+function _initAuthWatcher() {
+    if (_authReadyPromise) return _authReadyPromise;
+    _authReadyPromise = new Promise((resolve) => {
+        let resolved = false;
+        const unsub = auth.onAuthStateChanged((user) => {
+            if (resolved) return;
+            resolved = true;
+            _cachedUser = user || null;
+            unsub();
+            resolve(_cachedUser);
+        });
+        // Fallback: kalau Firebase hang
+        setTimeout(() => {
+            if (resolved) return;
+            resolved = true;
+            try { unsub(); } catch (e) {}
+            _cachedUser = auth.currentUser || null;
+            resolve(_cachedUser);
+        }, 4000);
+    });
+    return _authReadyPromise;
+}
+
+// Reset cache saat logout (biar halaman berikutnya re-check)
+auth.onAuthStateChanged((user) => {
+    if (_cachedUser !== undefined && user === null) {
+        _cachedUser = null;
     }
 });
 
@@ -26,52 +66,30 @@ window.FB = {
     auth,
     db,
 
-    // ⚠️ FUNGSI BARU: Tunggu sampai Firebase Auth selesai load session
-    // Ini penting supaya tidak fire redirect ke login padahal user sudah login
+    // ✅ FIX: waitForAuth pakai cache — hanya listen sekali
     waitForAuth() {
-        return new Promise((resolve) => {
-            // Kalau Firebase sudah selesai load state, currentUser bisa null atau user
-            // Kita pakai trick: cek apakah auth._isInitialized (internal Firebase)
-            if (auth.currentUser !== undefined && auth.currentUser !== null) {
-                console.log('✅ waitForAuth: user sudah ada di memory');
-                resolve(auth.currentUser);
-                return;
-            }
-
-            // Kalau belum, tunggu event pertama
-            let resolved = false;
-            const unsub = auth.onAuthStateChanged((user) => {
-                if (resolved) return;
-                resolved = true;
-                unsub();
-                console.log('✅ waitForAuth: resolved dengan', user ? user.uid : 'null');
-                resolve(user);
-            });
-
-            // Fallback timeout 5 detik — kalau Firebase hang
-            setTimeout(() => {
-                if (resolved) return;
-                resolved = true;
-                unsub();
-                console.warn('⚠️ waitForAuth: timeout, resolve dengan currentUser');
-                resolve(auth.currentUser);
-            }, 5000);
-        });
+        if (_cachedUser !== undefined) {
+            return Promise.resolve(_cachedUser);
+        }
+        return _initAuthWatcher();
     },
 
-    // ⚠️ requireAuth diperbaiki — pakai waitForAuth
+    // ✅ FIX: requireAuth hindari redirect loop
     async requireAuth(redirectTo) {
         const user = await this.waitForAuth();
         if (!user) {
             const next = redirectTo || (window.location.pathname.split('/').pop() + window.location.search);
             console.log('❌ Not authenticated, redirect to login. Next:', next);
-            window.location.href = 'login.html?next=' + encodeURIComponent(next);
+            if (!window.location.pathname.endsWith('login.html')) {
+                window.location.href = 'login.html?next=' + encodeURIComponent(next);
+            }
             return null;
         }
         return user;
     },
 
     async getUserData(uid) {
+        if (!uid) return null;
         try {
             const doc = await db.collection('users').doc(uid).get();
             return doc.exists ? { uid, ...doc.data() } : null;
@@ -87,9 +105,7 @@ window.FB = {
 
         const currentUid = auth.currentUser ? auth.currentUser.uid : null;
         if (!currentUid) throw new Error('User tidak login');
-        if (currentUid !== uid) {
-            throw new Error('UID mismatch: tidak boleh update saldo user lain');
-        }
+        if (currentUid !== uid) throw new Error('UID mismatch: tidak boleh update saldo user lain');
 
         const userRef = db.collection('users').doc(uid);
         await userRef.update({
@@ -98,8 +114,13 @@ window.FB = {
         });
     },
 
+    // ✅ setBalance dengan validasi lengkap
     async setBalance(uid, value) {
         if (!uid) throw new Error('UID wajib diisi');
+        if (typeof value !== 'number' || isNaN(value)) throw new Error('Value tidak valid');
+        const currentUid = auth.currentUser ? auth.currentUser.uid : null;
+        if (!currentUid) throw new Error('User tidak login');
+        if (currentUid !== uid) throw new Error('UID mismatch');
         const userRef = db.collection('users').doc(uid);
         await userRef.update({
             balance: value,
@@ -109,15 +130,12 @@ window.FB = {
 
     async logTransaction({ uid, username, type, amount, note, extra }) {
         if (!uid) throw new Error('UID wajib untuk log transaksi');
-
         const currentUid = auth.currentUser ? auth.currentUser.uid : null;
         if (!currentUid) throw new Error('User tidak login');
-        if (currentUid !== uid) {
-            throw new Error('UID mismatch pada log transaksi');
-        }
+        if (currentUid !== uid) throw new Error('UID mismatch pada log transaksi');
 
         return db.collection('transactions').add({
-            uid: uid,
+            uid,
             username: username || 'unknown',
             type,
             amount: Number(amount),
@@ -128,19 +146,66 @@ window.FB = {
         });
     },
 
+    // ✅ HELPER TERPUSAT: buat top up pending (dipakai qris.html & pembayaran.html)
+    async createPendingTopup({ uid, username, amount, method }) {
+        if (!uid || !username) throw new Error('UID & username wajib');
+        if (!amount || amount < 1000) throw new Error('Nominal minimal Rp 1.000');
+
+        const currentUid = auth.currentUser ? auth.currentUser.uid : null;
+        if (currentUid !== uid) throw new Error('UID mismatch');
+
+        const methodName = method || 'QRIS';
+
+        // 1. Buat dokumen topup
+        const topupRef = await db.collection('topups').add({
+            uid,
+            username,
+            amount,
+            total: amount,
+            method: methodName,
+            status: 'pending',
+            time: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 2. Log transaksi pending
+        await db.collection('transactions').add({
+            uid,
+            username,
+            type: 'topup',
+            amount,
+            note: `Top up via ${methodName} (menunggu approve admin)`,
+            extra: {
+                amount,
+                method: methodName,
+                status: 'pending',
+                topupId: topupRef.id
+            },
+            status: 'pending',
+            time: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        return topupRef.id;
+    },
+
     formatRp(n) {
-        return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+        return 'Rp ' + Math.round(n || 0).toLocaleString('id-ID');
     },
 
     formatNumber(n) {
-        return Math.round(n).toLocaleString('id-ID');
+        return Math.round(n || 0).toLocaleString('id-ID');
     },
 
     async logout() {
-        await auth.signOut();
+        try {
+            await auth.signOut();
+        } catch (e) {
+            console.warn('signOut error:', e);
+        }
         if ('caches' in window) {
-            const names = await caches.keys();
-            await Promise.all(names.map(n => caches.delete(n)));
+            try {
+                const names = await caches.keys();
+                await Promise.all(names.map(n => caches.delete(n)));
+            } catch (e) { /* ignore */ }
         }
         window.location.href = 'login.html';
     },
