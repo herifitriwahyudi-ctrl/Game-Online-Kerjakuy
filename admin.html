@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FFD700">
+    <link rel="manifest" href="manifest.json">
+    <title>🔐 Admin Panel — Fruit Crush</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body {
+            background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 12px;
+            font-size: 14px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 {
+            text-align: center;
+            font-size: 1.5em;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, #FF66FF 0%, #FFD700 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+        }
+        .sub { text-align: center; color: #888; font-size: 0.75em; margin-bottom: 18px; }
+
+        /* ===== SETUP / LOGIN BOX ===== */
+        .setup-box, .login-box {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 20px;
+            padding: 24px;
+            max-width: 420px;
+            margin: 40px auto;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.8), 0 0 0 3px rgba(0, 255, 136, 0.3);
+            border: 2px solid rgba(0, 255, 136, 0.4);
+            text-align: center;
+        }
+        .login-box { border-color: rgba(255, 100, 255, 0.4); box-shadow: 0 25px 70px rgba(0,0,0,0.8), 0 0 0 3px rgba(255, 0, 255, 0.3); }
+        .setup-box h2 { margin-bottom: 12px; color: #84fab0; font-size: 1.3em; }
+        .login-box h2 { text-align: center; margin-bottom: 20px; color: #FF66FF; font-size: 1.3em; }
+        .setup-box p { color: #aaa; font-size: 0.85em; margin-bottom: 16px; line-height: 1.5; }
+        .setup-box .default-creds {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid rgba(255, 215, 0, 0.4);
+            border-radius: 10px;
+            padding: 12px;
+            margin: 15px 0;
+            text-align: left;
+        }
+        .setup-box .default-creds .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            font-size: 0.85em;
+            gap: 10px;
+        }
+        .setup-box .default-creds .row .label { color: #888; }
+        .setup-box .default-creds .row .value {
+            color: #FFD700;
+            font-weight: bold;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            text-align: right;
+        }
+        .login-input {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255, 100, 255, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            color: white;
+            font-size: 0.95em;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .login-input:focus { border-color: #FF66FF; }
+        .setup-btn, .login-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 10px;
+            color: white;
+        }
+        .setup-btn { background: linear-gradient(135deg, #00b894 0%, #00a085 100%); }
+        .login-btn { background: linear-gradient(135deg, #FF66FF 0%, #FF00AA 100%); }
+        .setup-btn:disabled, .login-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .setup-btn:hover:not(:disabled), .login-btn:hover:not(:disabled) { transform: translateY(-2px); }
+        .info-box {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.4);
+            border-radius: 10px;
+            padding: 10px;
+            margin-top: 12px;
+            font-size: 0.75em;
+            color: #88ddff;
+            text-align: center;
+            line-height: 1.5;
+        }
+        .info-box b { color: #FFD700; }
+
+        /* ===== DASHBOARD ===== */
+        .dashboard { display: none; }
+        .dashboard.show { display: block; }
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .header-bar .user {
+            background: rgba(255, 100, 255, 0.15);
+            border: 1px solid rgba(255, 100, 255, 0.4);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 0.75em;
+            max-width: 100%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+            min-width: 0;
+        }
+        .header-bar .user b { color: #FF66FF; }
+        .logout-btn {
+            background: linear-gradient(135deg, #e17055 0%, #c0392b 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 16px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.8em;
+            flex-shrink: 0;
+        }
+
+        /* ===== STATS ===== */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px;
+            padding: 12px;
+            border: 2px solid rgba(0, 212, 255, 0.25);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+        .stat-card .label {
+            font-size: 0.65em;
+            color: #00D4FF;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+            line-height: 1.3;
+        }
+        .stat-card .value {
+            font-size: 1.2em;
+            font-weight: 900;
+            color: #FFD700;
+            line-height: 1.2;
+            word-break: break-all;
+        }
+        .stat-card .value.small { font-size: 0.95em; }
+        .stat-card.pending .value { color: #ffaa00; }
+        .stat-card.success .value { color: #84fab0; }
+        .stat-card.danger .value { color: #ff6666; }
+
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+            background: rgba(0,0,0,0.3);
+            padding: 5px;
+            border-radius: 12px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab {
+            flex-shrink: 0;
+            padding: 10px 14px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.75em;
+            color: #888;
+            transition: all 0.2s;
+            white-space: nowrap;
+            user-select: none;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #FF66FF 0%, #FF00AA 100%);
+            color: white;
+        }
+
+        /* ===== PANELS ===== */
+        .panel {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 14px;
+            padding: 14px;
+            border: 2px solid rgba(255, 100, 255, 0.2);
+            margin-bottom: 12px;
+        }
+        .panel h3 {
+            color: #FF66FF;
+            margin-bottom: 12px;
+            font-size: 0.95em;
+            line-height: 1.3;
+        }
+
+        /* ===== CARDS ===== */
+        .cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .item-card {
+            background: linear-gradient(135deg, #252540 0%, #1a1a2e 100%);
+            border: 1px solid rgba(255, 100, 255, 0.25);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .item-card .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .item-card .card-user {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .item-card .card-user .name {
+            font-weight: bold;
+            font-size: 0.95em;
+            color: white;
+            word-break: break-word;
+        }
+
+        .item-card .card-user .uid {
+            font-size: 0.7em;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+
+        .item-card .card-time {
+            font-size: 0.7em;
+            color: #888;
+            white-space: nowrap;
+        }
+
+        .item-card .card-body {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 0.85em;
+        }
+
+        .item-card .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .item-card .row .label {
+            color: #888;
+            font-size: 0.85em;
+            flex-shrink: 0;
+        }
+
+        .item-card .row .value {
+            color: white;
+            font-weight: bold;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        .item-card .row .value.gold {
+            color: #FFD700;
+            font-size: 1.05em;
+        }
+
+        .item-card .row .value.green { color: #84fab0; }
+        .item-card .row .value.red { color: #ff8888; }
+
+        .item-card .actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .item-card .actions button {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.8em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: white;
+        }
+
+        .item-card .actions button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-approve { background: linear-gradient(135deg, #00b894 0%, #00a085 100%); }
+        .btn-reject { background: linear-gradient(135deg, #c0392b 0%, #8b0000 100%); }
+        .item-card .actions button:hover:not(:disabled) { transform: translateY(-1px); opacity: 0.9; }
+
+        /* ===== BADGE ===== */
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.65em;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        .badge.pending { background: rgba(255, 170, 0, 0.2); color: #ffaa00; border: 1px solid #ffaa00; }
+        .badge.success { background: rgba(132, 250, 176, 0.2); color: #84fab0; border: 1px solid #84fab0; }
+        .badge.rejected { background: rgba(255, 100, 100, 0.2); color: #ff8888; border: 1px solid #ff8888; }
+        .badge.method-qris { background: rgba(0, 212, 255, 0.15); color: #00D4FF; border: 1px solid #00D4FF; }
+        .badge.method-bank { background: rgba(255, 215, 0, 0.15); color: #FFD700; border: 1px solid #FFD700; }
+        .badge.method-ewallet { background: rgba(132, 250, 176, 0.15); color: #84fab0; border: 1px solid #84fab0; }
+        .badge.method-pulsa { background: rgba(255, 100, 255, 0.15); color: #FF66FF; border: 1px solid #FF66FF; }
+
+        .empty {
+            text-align: center;
+            color: #666;
+            padding: 30px 20px;
+            font-style: italic;
+            font-size: 0.85em;
+        }
+
+        /* ===== TOAST ===== */
+        .toast {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            left: 12px;
+            background: linear-gradient(135deg, #00b894 0%, #00a085 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-weight: bold;
+            z-index: 999;
+            opacity: 0;
+            transform: translateY(-100%);
+            transition: all 0.3s;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+            font-size: 0.85em;
+            text-align: center;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.error { background: linear-gradient(135deg, #e17055 0%, #c0392b 100%); }
+
+        /* ===== DESKTOP ===== */
+        @media (min-width: 640px) {
+            body { padding: 20px; font-size: 15px; }
+            h1 { font-size: 2em; }
+            .stats { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+            .stat-card { padding: 16px; }
+            .stat-card .label { font-size: 0.7em; }
+            .stat-card .value { font-size: 1.5em; }
+            .stat-card .value.small { font-size: 1.1em; }
+            .tab { font-size: 0.8em; padding: 10px 18px; }
+            .panel { padding: 18px; }
+            .panel h3 { font-size: 1.05em; }
+            .item-card { padding: 14px 16px; }
+            .item-card .card-body { flex-direction: row; flex-wrap: wrap; gap: 12px; }
+            .item-card .row { flex: 1; min-width: 140px; justify-content: flex-start; }
+            .item-card .row .label { min-width: 60px; }
+            .item-card .actions { grid-template-columns: auto auto; justify-content: flex-end; }
+            .item-card .actions button { padding: 8px 20px; }
+            .toast { left: auto; max-width: 340px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 ADMIN PANEL</h1>
+        <div class="sub">Fruit Crush Special</div>
+
+        <!-- ===== SETUP BOX ===== -->
+        <div class="setup-box" id="setupBox" style="display:none;">
+            <h2>🎉 Setup Admin Pertama Kali</h2>
+            <p>
+                Belum ada admin terdeteksi.<br>
+                Klik tombol di bawah untuk membuat akun admin default.
+            </p>
+            <div class="default-creds">
+                <div class="row">
+                    <span class="label">Username</span>
+                    <span class="value">admin</span>
+                </div>
+                <div class="row">
+                    <span class="label">Email</span>
+                    <span class="value">admin@fruitcrush.com</span>
+                </div>
+                <div class="row">
+                    <span class="label">Password</span>
+                    <span class="value">admin123</span>
+                </div>
+            </div>
+            <button class="setup-btn" id="btnSetup" onclick="setupDefaultAdmin()">
+                🚀 BUAT ADMIN DEFAULT
+            </button>
+            <div style="color:#ff8888;font-size:0.75em;margin-top:12px;">
+                ⚠️ Ganti password setelah login!
+            </div>
+        </div>
+
+        <!-- ===== LOGIN BOX ===== -->
+        <div class="login-box" id="loginBox" style="display:none;">
+            <h2>🔒 Login Admin</h2>
+            <input type="email" class="login-input" id="adminUser" placeholder="Email admin" autocomplete="email">
+            <input type="password" class="login-input" id="adminPass" placeholder="Password" autocomplete="current-password">
+            <button class="login-btn" id="btnLogin" onclick="doLogin()">MASUK</button>
+            <div class="info-box">
+                Default: <b>admin@fruitcrush.com</b> / <b>admin123</b>
+            </div>
+        </div>
+
+        <!-- ===== DASHBOARD ===== -->
+        <div class="dashboard" id="dashboard">
+            <div class="header-bar">
+                <div class="user">👤 <b id="currentAdmin">-</b></div>
+                <button class="logout-btn" onclick="doLogout()">🚪 LOGOUT</button>
+            </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="label">💰 Total Saldo</div>
+                    <div class="value small" id="statBalance">Rp 0</div>
+                </div>
+                <div class="stat-card pending">
+                    <div class="label">⏳ Top Up</div>
+                    <div class="value" id="statTopup">0</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="label">📤 Withdraw</div>
+                    <div class="value" id="statWithdraw">0</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="label">👥 User</div>
+                    <div class="value" id="statUsers">0</div>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('pendingTopup')">📥 TOP UP</div>
+                <div class="tab" onclick="switchTab('pendingWithdraw')">📤 WITHDRAW</div>
+                <div class="tab" onclick="switchTab('users')">👥 USER</div>
+            </div>
+
+            <!-- ===== TOP UP PENDING ===== -->
+            <div class="panel" id="panelPendingTopup">
+                <h3>📥 Permintaan Top Up</h3>
+                <div class="cards-container" id="pendingTopupList"></div>
+                <div class="empty" id="pendingTopupEmpty">Tidak ada top up pending.</div>
+            </div>
+
+            <!-- ===== WITHDRAW PENDING ===== -->
+            <div class="panel" id="panelPendingWithdraw" style="display:none;">
+                <h3>📤 Permintaan Withdraw</h3>
+                <div class="cards-container" id="pendingWithdrawList"></div>
+                <div class="empty" id="pendingWithdrawEmpty">Tidak ada withdraw pending.</div>
+            </div>
+
+            <!-- ===== USERS ===== -->
+            <div class="panel" id="panelUsers" style="display:none;">
+                <h3>👥 Daftar User</h3>
+                <div class="cards-container" id="usersList"></div>
+                <div class="empty" id="usersEmpty">Belum ada user terdaftar.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        const DEFAULT_ADMIN = {
+            username: 'admin',
+            email: 'admin@fruitcrush.com',
+            password: 'admin123'
+        };
+
+        let adminUser = null;
+        let currentTab = 'pendingTopup';
+        let unsubscribeTopups = null;
+        let unsubscribeWithdrawals = null;
+        let unsubscribeUsers = null;
+
+        // State untuk stats
+        let _topupsList = [];
+        let _withdrawalsList = [];
+        let _usersList = [];
+
+        // Lock untuk cegah double-click
+        const processingIds = new Set();
+
+        // ===== TOAST =====
+        function toast(msg, isError = false) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = 'toast show' + (isError ? ' error' : '');
+            clearTimeout(el._t);
+            el._t = setTimeout(() => el.classList.remove('show'), 3500);
+        }
+
+        // ===== ADMIN HELPERS =====
+        async function getAdminData(uid) {
+            try {
+                const doc = await FB.db.collection('admins').doc(uid).get();
+                return doc.exists ? { uid, ...doc.data() } : null;
+            } catch (e) { return null; }
+        }
+
+        async function adminExists() {
+            try {
+                const snap = await FB.db.collection('admins').limit(1).get();
+                return !snap.empty;
+            } catch (e) {
+                console.error('adminExists error:', e);
+                return false;
+            }
+        }
+
+        // ===== SETUP ADMIN DEFAULT =====
+        async function setupDefaultAdmin() {
+            const btn = document.getElementById('btnSetup');
+            btn.disabled = true;
+            btn.textContent = '⏳ MEMBUAT ADMIN...';
+
+            try {
+                const exists = await adminExists();
+                if (exists) {
+                    toast('⚠️ Admin sudah ada, silakan login', true);
+                    showLogin();
+                    return;
+                }
+
+                let uid;
+                try {
+                    const cred = await FB.auth.createUserWithEmailAndPassword(
+                        DEFAULT_ADMIN.email,
+                        DEFAULT_ADMIN.password
+                    );
+                    uid = cred.user.uid;
+                } catch (authErr) {
+                    if (authErr.code === 'auth/email-already-in-use') {
+                        const cred = await FB.auth.signInWithEmailAndPassword(
+                            DEFAULT_ADMIN.email,
+                            DEFAULT_ADMIN.password
+                        );
+                        uid = cred.user.uid;
+                    } else {
+                        throw authErr;
+                    }
+                }
+
+                await FB.db.collection('admins').doc(uid).set({
+                    uid,
+                    username: DEFAULT_ADMIN.username,
+                    email: DEFAULT_ADMIN.email,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                try {
+                    await FB.db.collection('users').doc(uid).delete();
+                } catch (e) {}
+
+                await FB.auth.signOut();
+
+                toast('🎉 Admin default berhasil dibuat!');
+                setTimeout(() => {
+                    showLogin();
+                    document.getElementById('adminUser').value = DEFAULT_ADMIN.email;
+                    document.getElementById('adminPass').value = DEFAULT_ADMIN.password;
+                }, 1500);
+            } catch (e) {
+                console.error('Setup error:', e);
+                let msg = '❌ Gagal buat admin';
+                if (e.code === 'auth/email-already-in-use') msg = '⚠️ Email sudah terdaftar';
+                else if (e.code === 'auth/weak-password') msg = '⚠️ Password terlalu lemah';
+                else if (e.code === 'auth/invalid-email') msg = '⚠️ Email tidak valid';
+                else if (e.code === 'permission-denied') msg = '⚠️ Akses ditolak — cek Firestore rules';
+                else msg += ': ' + e.message;
+                toast(msg, true);
+
+                btn.disabled = false;
+                btn.textContent = '🚀 BUAT ADMIN DEFAULT';
+            }
+        }
+
+        function showSetup() {
+            document.getElementById('setupBox').style.display = 'block';
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('dashboard').classList.remove('show');
+        }
+
+        function showLogin() {
+            document.getElementById('setupBox').style.display = 'none';
+            document.getElementById('loginBox').style.display = 'block';
+            document.getElementById('dashboard').classList.remove('show');
+        }
+
+        function showDashboard() {
+            document.getElementById('setupBox').style.display = 'none';
+            document.getElementById('loginBox').style.display = 'none';
+            document.getElementById('dashboard').classList.add('show');
+            document.getElementById('currentAdmin').textContent = adminUser.email;
+            setupListeners();
+        }
+
+        async function doLogin() {
+            const email = document.getElementById('adminUser').value.trim();
+            const pass = document.getElementById('adminPass').value;
+            if (!email || !pass) { toast('Email & password wajib diisi', true); return; }
+
+            const btn = document.getElementById('btnLogin');
+            btn.disabled = true;
+            btn.textContent = '⏳ LOGIN...';
+
+            try {
+                const cred = await FB.auth.signInWithEmailAndPassword(email, pass);
+                const adminData = await getAdminData(cred.user.uid);
+                if (!adminData) {
+                    await FB.auth.signOut();
+                    toast('❌ Akun ini bukan admin', true);
+                    btn.disabled = false;
+                    btn.textContent = 'MASUK';
+                    return;
+                }
+
+                adminUser = cred.user;
+                toast(`✅ Selamat datang, ${adminData.username || adminData.email}`);
+                showDashboard();
+            } catch (e) {
+                console.error(e);
+                let msg = '❌ Login gagal';
+                if (e.code === 'auth/user-not-found') msg = 'Email belum terdaftar';
+                else if (e.code === 'auth/wrong-password') msg = 'Password salah';
+                else if (e.code === 'auth/invalid-credential') msg = 'Email atau password salah';
+                else if (e.code === 'auth/invalid-email') msg = 'Format email tidak valid';
+                else if (e.code === 'auth/too-many-requests') msg = 'Terlalu banyak percobaan';
+                toast(msg, true);
+                btn.disabled = false;
+                btn.textContent = 'MASUK';
+            }
+        }
+
+        async function doLogout() {
+            if (unsubscribeTopups) { unsubscribeTopups(); unsubscribeTopups = null; }
+            if (unsubscribeWithdrawals) { unsubscribeWithdrawals(); unsubscribeWithdrawals = null; }
+            if (unsubscribeUsers) { unsubscribeUsers(); unsubscribeUsers = null; }
+            await FB.auth.signOut();
+            window.location.reload();
+        }
+
+        // ===== LISTENERS =====
+        function setupListeners() {
+            unsubscribeTopups = FB.db.collection('topups')
+                .orderBy('time', 'desc').limit(100)
+                .onSnapshot((snap) => {
+                    const list = [];
+                    snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+                    _topupsList = list;
+                    renderPendingTopup(list);
+                    updateStats();
+                }, (err) => console.error('topups listener:', err));
+
+            unsubscribeWithdrawals = FB.db.collection('withdrawals')
+                .orderBy('time', 'desc').limit(100)
+                .onSnapshot((snap) => {
+                    const list = [];
+                    snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+                    _withdrawalsList = list;
+                    renderPendingWithdraw(list);
+                    updateStats();
+                }, (err) => console.error('withdrawals listener:', err));
+
+            unsubscribeUsers = FB.db.collection('users')
+                .orderBy('createdAt', 'desc').limit(200)
+                .onSnapshot((snap) => {
+                    const list = [];
+                    snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+                    _usersList = list;
+                    renderUsers(list);
+                    updateStats();
+                }, (err) => console.error('users listener:', err));
+        }
+
+        // ===== HELPERS =====
+        function formatTime(ts) {
+            if (!ts) return '-';
+            let d;
+            if (ts.toDate) d = ts.toDate();
+            else d = new Date(ts);
+            return d.toLocaleString('id-ID', {
+                day: '2-digit', month: 'short', year: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function escapeHtml(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/[&<>"']/g, (m) => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[m]));
+        }
+
+        function methodBadge(method) {
+            const m = (method || '').toLowerCase();
+            let cls = 'method-bank';
+            if (m.includes('qris')) cls = 'method-qris';
+            else if (m.includes('wallet')) cls = 'method-ewallet';
+            else if (m.includes('pulsa')) cls = 'method-pulsa';
+            return `<span class="badge ${cls}">${escapeHtml(method || '-')}</span>`;
+        }
+
+        // ===== RENDER TOP UP =====
+        function renderPendingTopup(list) {
+            const pending = list.filter(p => p.status === 'pending');
+            const container = document.getElementById('pendingTopupList');
+            const empty = document.getElementById('pendingTopupEmpty');
+
+            if (pending.length === 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            container.innerHTML = pending.map(p => {
+                const isProcessing = processingIds.has(p.id);
+                return `
+                <div class="item-card">
+                    <div class="card-header">
+                        <div class="card-user">
+                            <span class="name">👤 ${escapeHtml(p.username || '-')}</span>
+                            <span class="uid">${escapeHtml((p.uid || '').substring(0, 16))}...</span>
+                        </div>
+                        <span class="card-time">🕐 ${formatTime(p.time)}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <span class="label">Nominal</span>
+                            <span class="value gold">${FB.formatRp(p.amount)}</span>
+                        </div>
+                        <div class="row">
+                            <span class="label">Metode</span>
+                            <span class="value">${methodBadge(p.method)}</span>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-approve" 
+                                onclick="approveTopup('${p.id}')"
+                                ${isProcessing ? 'disabled' : ''}>
+                            ${isProcessing ? '⏳' : '✓'} Approve
+                        </button>
+                        <button class="btn-reject" 
+                                onclick="rejectTopup('${p.id}')"
+                                ${isProcessing ? 'disabled' : ''}>
+                            ${isProcessing ? '⏳' : '✗'} Reject
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // ===== APPROVE TOPUP (ATOMIC TRANSACTION) =====
+        async function approveTopup(id) {
+            if (processingIds.has(id)) {
+                toast('⏳ Sedang diproses, tunggu...', true);
+                return;
+            }
+
+            if (!confirm('Setujui top up ini? Saldo user akan bertambah.')) return;
+
+            processingIds.add(id);
+            renderPendingTopup(_topupsList);
+
+            try {
+                const result = await FB.db.runTransaction(async (transaction) => {
+                    const topupRef = FB.db.collection('topups').doc(id);
+                    const topupSnap = await transaction.get(topupRef);
+
+                    if (!topupSnap.exists) {
+                        throw new Error('Data topup tidak ditemukan');
+                    }
+
+                    const topupData = topupSnap.data();
+
+                    if (topupData.status !== 'pending') {
+                        throw new Error('Topup sudah diproses (status: ' + topupData.status + ')');
+                    }
+
+                    if (!topupData.uid) {
+                        throw new Error('UID tidak ada di topup');
+                    }
+
+                    if (!topupData.amount || topupData.amount <= 0) {
+                        throw new Error('Nominal tidak valid');
+                    }
+
+                    const userRef = FB.db.collection('users').doc(topupData.uid);
+                    const userSnap = await transaction.get(userRef);
+
+                    if (!userSnap.exists) {
+                        throw new Error('User target tidak ditemukan');
+                    }
+
+                    const userData = userSnap.data();
+
+                    // ✅ Atomic: kedua operasi sukses atau dua-duanya batal
+                    transaction.update(userRef, {
+                        balance: firebase.firestore.FieldValue.increment(topupData.amount),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    transaction.update(topupRef, {
+                        status: 'success',
+                        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        approvedBy: adminUser.email,
+                        approvedToUid: topupData.uid,
+                        approvedToUsername: userData.username
+                    });
+
+                    return {
+                        username: userData.username,
+                        amount: topupData.amount
+                    };
+                });
+
+                toast(`✅ ${result.username} +${FB.formatRp(result.amount)}`);
+            } catch (e) {
+                console.error('approveTopup error:', e);
+                toast('❌ Gagal approve: ' + e.message, true);
+            } finally {
+                processingIds.delete(id);
+                renderPendingTopup(_topupsList);
+            }
+        }
+
+        // ===== REJECT TOPUP (ATOMIC TRANSACTION) =====
+        async function rejectTopup(id) {
+            if (processingIds.has(id)) {
+                toast('⏳ Sedang diproses, tunggu...', true);
+                return;
+            }
+
+            if (!confirm('Tolak top up ini?')) return;
+
+            processingIds.add(id);
+            renderPendingTopup(_topupsList);
+
+            try {
+                const result = await FB.db.runTransaction(async (transaction) => {
+                    const topupRef = FB.db.collection('topups').doc(id);
+                    const topupSnap = await transaction.get(topupRef);
+
+                    if (!topupSnap.exists) {
+                        throw new Error('Data topup tidak ditemukan');
+                    }
+
+                    const topupData = topupSnap.data();
+
+                    if (topupData.status !== 'pending') {
+                        throw new Error('Topup sudah diproses (status: ' + topupData.status + ')');
+                    }
+
+                    transaction.update(topupRef, {
+                        status: 'rejected',
+                        rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        rejectedBy: adminUser.email
+                    });
+
+                    return topupData;
+                });
+
+                toast(`❌ Top up ${result.username} ditolak`);
+            } catch (e) {
+                console.error('rejectTopup error:', e);
+                toast('❌ Gagal: ' + e.message, true);
+            } finally {
+                processingIds.delete(id);
+                renderPendingTopup(_topupsList);
+            }
+        }
+
+        // ===== RENDER WITHDRAW =====
+        function renderPendingWithdraw(list) {
+            const pending = list.filter(p => p.status === 'pending');
+            const container = document.getElementById('pendingWithdrawList');
+            const empty = document.getElementById('pendingWithdrawEmpty');
+
+            if (pending.length === 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            container.innerHTML = pending.map(p => {
+                const isProcessing = processingIds.has(p.id);
+                return `
+                <div class="item-card">
+                    <div class="card-header">
+                        <div class="card-user">
+                            <span class="name">👤 ${escapeHtml(p.username || '-')}</span>
+                            <span class="uid">${escapeHtml((p.uid || '').substring(0, 16))}...</span>
+                        </div>
+                        <span class="card-time">🕐 ${formatTime(p.time)}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <span class="label">Nominal</span>
+                            <span class="value gold">${FB.formatRp(p.amount)}</span>
+                        </div>
+                        <div class="row">
+                            <span class="label">Fee</span>
+                            <span class="value red">-${FB.formatRp(p.fee || 0)}</span>
+                        </div>
+                        <div class="row">
+                            <span class="label">Diterima</span>
+                            <span class="value green">${FB.formatRp(p.total || (p.amount - (p.fee || 0)))}</span>
+                        </div>
+                        <div class="row">
+                            <span class="label">Metode</span>
+                            <span class="value">${methodBadge(p.method)}</span>
+                        </div>
+                        <div class="row">
+                            <span class="label">Tujuan</span>
+                            <span class="value">${escapeHtml(p.account || '-')}</span>
+                        </div>
+                    </div>
+                    <div class="actions">
+                        <button class="btn-approve" 
+                                onclick="approveWithdraw('${p.id}')"
+                                ${isProcessing ? 'disabled' : ''}>
+                            ${isProcessing ? '⏳' : '✓'} Approve
+                        </button>
+                        <button class="btn-reject" 
+                                onclick="rejectWithdraw('${p.id}')"
+                                ${isProcessing ? 'disabled' : ''}>
+                            ${isProcessing ? '⏳' : '✗'} Reject
+                        </button>
+                    </div>
+                </div>
+                `;
+            }).join('');
+        }
+
+        // ===== APPROVE WITHDRAW (ATOMIC TRANSACTION) =====
+        async function approveWithdraw(id) {
+            if (processingIds.has(id)) {
+                toast('⏳ Sedang diproses, tunggu...', true);
+                return;
+            }
+
+            if (!confirm('Setujui withdraw ini?')) return;
+
+            processingIds.add(id);
+            renderPendingWithdraw(_withdrawalsList);
+
+            try {
+                const result = await FB.db.runTransaction(async (transaction) => {
+                    const wdRef = FB.db.collection('withdrawals').doc(id);
+                    const wdSnap = await transaction.get(wdRef);
+
+                    if (!wdSnap.exists) {
+                        throw new Error('Withdraw tidak ditemukan');
+                    }
+
+                    const data = wdSnap.data();
+
+                    if (data.status !== 'pending') {
+                        throw new Error('Withdraw sudah diproses (status: ' + data.status + ')');
+                    }
+
+                    transaction.update(wdRef, {
+                        status: 'success',
+                        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        approvedBy: adminUser.email
+                    });
+
+                    return data;
+                });
+
+                toast(`✅ Withdraw ${result.username} ${FB.formatRp(result.amount)} disetujui`);
+            } catch (e) {
+                console.error('approveWithdraw error:', e);
+                toast('❌ Gagal: ' + e.message, true);
+            } finally {
+                processingIds.delete(id);
+                renderPendingWithdraw(_withdrawalsList);
+            }
+        }
+
+        // ===== REJECT WITHDRAW (ATOMIC TRANSACTION + REFUND) =====
+        async function rejectWithdraw(id) {
+            if (processingIds.has(id)) {
+                toast('⏳ Sedang diproses, tunggu...', true);
+                return;
+            }
+
+            if (!confirm('Tolak withdraw? Saldo akan dikembalikan ke user.')) return;
+
+            processingIds.add(id);
+            renderPendingWithdraw(_withdrawalsList);
+
+            try {
+                const result = await FB.db.runTransaction(async (transaction) => {
+                    const wdRef = FB.db.collection('withdrawals').doc(id);
+                    const wdSnap = await transaction.get(wdRef);
+
+                    if (!wdSnap.exists) {
+                        throw new Error('Withdraw tidak ditemukan');
+                    }
+
+                    const data = wdSnap.data();
+
+                    if (data.status !== 'pending') {
+                        throw new Error('Withdraw sudah diproses (status: ' + data.status + ')');
+                    }
+
+                    if (!data.uid) {
+                        throw new Error('UID tidak ada di withdraw');
+                    }
+
+                    // Refund saldo ke user
+                    const userRef = FB.db.collection('users').doc(data.uid);
+                    const userSnap = await transaction.get(userRef);
+
+                    if (!userSnap.exists) {
+                        throw new Error('User tidak ditemukan');
+                    }
+
+                    // ✅ Atomic: refund + update status
+                    transaction.update(userRef, {
+                        balance: firebase.firestore.FieldValue.increment(data.amount),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    transaction.update(wdRef, {
+                        status: 'rejected',
+                        rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        rejectedBy: adminUser.email
+                    });
+
+                    return data;
+                });
+
+                toast(`↩️ Withdraw ${result.username} ditolak, saldo ${FB.formatRp(result.amount)} dikembalikan`);
+            } catch (e) {
+                console.error('rejectWithdraw error:', e);
+                toast('❌ Gagal: ' + e.message, true);
+            } finally {
+                processingIds.delete(id);
+                renderPendingWithdraw(_withdrawalsList);
+            }
+        }
+
+        // ===== RENDER USERS =====
+        function renderUsers(list) {
+            const container = document.getElementById('usersList');
+            const empty = document.getElementById('usersEmpty');
+
+            if (list.length === 0) {
+                container.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            container.innerHTML = list.map(u => `
+                <div class="item-card">
+                    <div class="card-header">
+                        <div class="card-user">
+                            <span class="name">👤 ${escapeHtml(u.username || '-')}</span>
+                            <span class="uid">${escapeHtml(u.email || '')}</span>
+                        </div>
+                        <span class="card-time">${u.createdAt ? '📅 ' + formatTime(u.createdAt.toDate ? u.createdAt.toDate() : u.createdAt) : ''}</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <span class="label">Saldo</span>
+                            <span class="value gold">${FB.formatRp(u.balance || 0)}</span>
+                        </div>
+                        <div class="row">
+                            <span class="label">UID</span>
+                            <span class="value" style="font-family:'Courier New',monospace;font-size:0.85em;">${escapeHtml((u.uid || u.id || '').substring(0, 20))}...</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ===== STATS =====
+        function updateStats() {
+            let totalBalance = 0;
+            _usersList.forEach(u => totalBalance += (u.balance || 0));
+
+            const topupCount = _topupsList.filter(t => t.status === 'pending').length;
+            const withdrawCount = _withdrawalsList.filter(w => w.status === 'pending').length;
+
+            document.getElementById('statBalance').textContent = FB.formatRp(totalBalance);
+            document.getElementById('statTopup').textContent = topupCount;
+            document.getElementById('statWithdraw').textContent = withdrawCount;
+            document.getElementById('statUsers').textContent = _usersList.length;
+        }
+
+        // ===== TABS =====
+        function switchTab(tab) {
+            currentTab = tab;
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach((t, i) => {
+                t.classList.toggle('active',
+                    (tab === 'pendingTopup' && i === 0) ||
+                    (tab === 'pendingWithdraw' && i === 1) ||
+                    (tab === 'users' && i === 2)
+                );
+            });
+            document.getElementById('panelPendingTopup').style.display = tab === 'pendingTopup' ? 'block' : 'none';
+            document.getElementById('panelPendingWithdraw').style.display = tab === 'pendingWithdraw' ? 'block' : 'none';
+            document.getElementById('panelUsers').style.display = tab === 'users' ? 'block' : 'none';
+        }
+
+        // ===== INIT =====
+        (async function init() {
+            FB.registerSW();
+
+            const user = await FB.waitForAuth();
+            if (user) {
+                const adminData = await getAdminData(user.uid);
+                if (adminData) {
+                    adminUser = user;
+                    showDashboard();
+                    return;
+                } else {
+                    await FB.auth.signOut();
+                }
+            }
+
+            const exists = await adminExists();
+            if (exists) {
+                showLogin();
+            } else {
+                showSetup();
+            }
+        })();
+
+        // Cleanup saat unload
+        window.addEventListener('beforeunload', () => {
+            if (unsubscribeTopups) unsubscribeTopups();
+            if (unsubscribeWithdrawals) unsubscribeWithdrawals();
+            if (unsubscribeUsers) unsubscribeUsers();
+        });
+    </script>
+</body>
+  </html>
