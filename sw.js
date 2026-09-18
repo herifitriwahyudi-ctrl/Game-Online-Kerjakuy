@@ -1,40 +1,26 @@
-// ===== FRUIT CRUSH SERVICE WORKER =====
-const CACHE_NAME = 'fruitcrush-v1.0.0';
-const RUNTIME_CACHE = 'fruitcrush-runtime-v1.0.0';
+// ===== FRUIT CRUSH SERVICE WORKER v2 =====
+// HTML: network-only (jangan di-cache agar selalu fresh)
+// JS/CSS: network-first
+// Gambar: cache-first
 
-// File yang di-cache saat install
+const CACHE_NAME = 'fruitcrush-v2.0.0';
+const RUNTIME_CACHE = 'fruitcrush-runtime-v2.0.0';
+
 const PRECACHE_URLS = [
-    './',
-    './index.html',
-    './login.html',
-    './pembayaran.html',
-    './qris.html',
-    './admin.html',
-    './firebase-config.js',
     './manifest.json'
 ];
 
-// ===== INSTALL =====
 self.addEventListener('install', (event) => {
-    console.log('[SW] Installing...');
+    console.log('[SW] Installing v2...');
     event.waitUntil(
         caches.open(CACHE_NAME)
-            .then((cache) => {
-                console.log('[SW] Precaching app shell');
-                // Cache satu-satu agar tidak gagal total kalau ada file hilang
-                return Promise.all(
-                    PRECACHE_URLS.map(url =>
-                        cache.add(url).catch(err => console.warn('[SW] Skip cache:', url, err))
-                    )
-                );
-            })
+            .then((cache) => cache.addAll(PRECACHE_URLS).catch(() => {}))
             .then(() => self.skipWaiting())
     );
 });
 
-// ===== ACTIVATE =====
 self.addEventListener('activate', (event) => {
-    console.log('[SW] Activating...');
+    console.log('[SW] Activating v2...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
@@ -49,42 +35,52 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// ===== FETCH =====
 self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
 
-    // Skip non-GET
     if (request.method !== 'GET') return;
 
-    // Skip Firebase Auth / Firestore / Google APIs — biar tidak nge-cache data dinamis
+    // Skip Firebase, Google API
     if (url.hostname.includes('googleapis.com') ||
         url.hostname.includes('firebaseio.com') ||
         url.hostname.includes('firebaseapp.com') ||
         url.hostname.includes('gstatic.com') ||
-        url.hostname.includes('google.com')) {
+        url.hostname.includes('google.com') ||
+        url.hostname.includes('firebase')) {
         return;
     }
 
-    // Skip chrome-extension, etc
     if (!url.protocol.startsWith('http')) return;
 
-    // HTML — network first (biar selalu update)
-    if (request.headers.get('accept')?.includes('text/html')) {
+    // ⚠️ HTML → NETWORK ONLY (jangan di-cache)
+    if (request.headers.get('accept')?.includes('text/html') ||
+        url.pathname.endsWith('.html') ||
+        url.pathname.endsWith('/')) {
         event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    const clone = response.clone();
-                    caches.open(RUNTIME_CACHE).then(cache => cache.put(request, clone));
-                    return response;
-                })
-                .catch(() => caches.match(request).then(cached => cached || caches.match('./index.html')))
+            fetch(request).catch(() => caches.match('./index.html'))
         );
         return;
     }
 
-    // Asset statis (gambar, css, js, font) — cache first
-    if (url.pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico|css|js|woff|woff2|ttf)$/)) {
+    // ⚠️ JS & CSS → NETWORK FIRST (biar selalu dapat versi terbaru)
+    if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+        event.respondWith(
+            fetch(request)
+                .then((response) => {
+                    if (response && response.status === 200) {
+                        const clone = response.clone();
+                        caches.open(RUNTIME_CACHE).then(cache => cache.put(request, clone));
+                    }
+                    return response;
+                })
+                .catch(() => caches.match(request))
+        );
+        return;
+    }
+
+    // Gambar → cache first
+    if (url.pathname.match(/\.(png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot)$/)) {
         event.respondWith(
             caches.match(request).then((cached) => {
                 if (cached) return cached;
@@ -101,19 +97,9 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // Default — network with cache fallback
-    event.respondWith(
-        fetch(request)
-            .then((response) => {
-                const clone = response.clone();
-                caches.open(RUNTIME_CACHE).then(cache => cache.put(request, clone));
-                return response;
-            })
-            .catch(() => caches.match(request))
-    );
+    event.respondWith(fetch(request).catch(() => caches.match(request)));
 });
 
-// ===== MESSAGE =====
 self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'SKIP_WAITING') {
         self.skipWaiting();
@@ -123,4 +109,4 @@ self.addEventListener('message', (event) => {
     }
 });
 
-console.log('[SW] Loaded');
+console.log('[SW] Loaded v2');
