@@ -284,7 +284,6 @@
         let currentUser = null;
         let currentUserData = null;
         let unsubscribeUser = null;
-        let authUnsubscribe = null;
 
         let state = {
             mode: 'topup',
@@ -335,6 +334,7 @@
             document.getElementById('withdrawTotalDisplay').textContent = FB.formatRp(total);
         }
 
+        // ===== EVENT LISTENERS =====
         document.querySelectorAll('#topupGrid .option').forEach(el => {
             el.addEventListener('click', () => {
                 document.querySelectorAll('#topupGrid .option').forEach(o => o.classList.remove('selected'));
@@ -389,6 +389,7 @@
             });
         });
 
+        // ===== CONFIRM TOPUP =====
         function confirmTopup() {
             const uid = getActiveUid();
             if (!uid) {
@@ -401,11 +402,13 @@
                 return;
             }
 
+            // QRIS → redirect ke halaman qris.html
             if (state.topupMethod === 'QRIS') {
                 window.location.href = `qris.html?amount=${state.topupAmount}&method=QRIS&uid=${uid}`;
                 return;
             }
 
+            // Non-QRIS → langsung buat topup pending
             const btn = document.getElementById('btnConfirmTopup');
             btn.disabled = true;
             btn.textContent = '⏳ MENGIRIM...';
@@ -415,39 +418,18 @@
                     const freshData = await FB.getUserData(uid);
                     if (!freshData) throw new Error('User tidak ditemukan');
 
-                    console.log('=== TOP UP PENDING ===');
-                    console.log('UID:', uid, '| User:', freshData.username, '| Nominal:', state.topupAmount);
-
-                    await FB.db.collection('topups').add({
-                        uid: uid,
+                    // ✅ Pakai helper terpusat
+                    await FB.createPendingTopup({
+                        uid,
                         username: freshData.username,
                         amount: state.topupAmount,
-                        total: state.topupAmount,
-                        method: state.topupMethod,
-                        status: 'pending',
-                        time: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-
-                    await FB.db.collection('transactions').add({
-                        uid: uid,
-                        username: freshData.username,
-                        type: 'topup',
-                        amount: state.topupAmount,
-                        note: `Top up via ${state.topupMethod} (menunggu approve admin)`,
-                        extra: {
-                            amount: state.topupAmount,
-                            method: state.topupMethod,
-                            status: 'pending'
-                        },
-                        status: 'pending',
-                        time: firebase.firestore.FieldValue.serverTimestamp()
+                        method: state.topupMethod
                     });
 
                     showAlert(
                         `⏳ Top up ${FB.formatRp(state.topupAmount)} dikirim. Menunggu approve admin.`,
                         'success'
                     );
-
                     setTimeout(() => window.location.href = 'index.html', 2500);
                 } catch (e) {
                     console.error(e);
@@ -458,6 +440,7 @@
             })();
         }
 
+        // ===== CONFIRM WITHDRAW =====
         async function confirmWithdraw() {
             const uid = getActiveUid();
             if (!uid) {
@@ -471,10 +454,7 @@
             }
 
             const freshData = await FB.getUserData(uid);
-            if (!freshData) {
-                showAlert('User tidak ditemukan', 'error');
-                return;
-            }
+            if (!freshData) { showAlert('User tidak ditemukan', 'error'); return; }
             if (state.withdrawAmount > (freshData.balance || 0)) {
                 showAlert('Saldo tidak cukup!', 'error');
                 return;
@@ -510,6 +490,7 @@
                     time: firebase.firestore.FieldValue.serverTimestamp()
                 });
 
+                // ✅ Pakai helper terpusat
                 await FB.logTransaction({
                     uid,
                     username: freshData.username,
@@ -529,10 +510,11 @@
             }
         }
 
+        // ===== INIT =====
         (async function init() {
             FB.registerSW();
-
             console.log('=== INIT pembayaran.html ===');
+
             const user = await FB.requireAuth('pembayaran.html' + window.location.search);
             if (!user) return;
             currentUser = user;
@@ -541,29 +523,22 @@
             const data = await FB.getUserData(user.uid);
             if (!data) {
                 console.error('User data tidak ditemukan');
+                await FB.auth.signOut();
                 window.location.href = 'login.html';
                 return;
             }
             currentUserData = data;
 
             const thisUid = user.uid;
+            // ✅ Single listener (tidak ada authUnsubscribe ganda)
             unsubscribeUser = FB.db.collection('users').doc(thisUid).onSnapshot((doc) => {
-                const activeUid = getActiveUid();
-                if (!activeUid || activeUid !== thisUid) {
-                    if (unsubscribeUser) { unsubscribeUser(); unsubscribeUser = null; }
-                    return;
-                }
-                if (doc.exists) {
-                    currentUserData = { uid: thisUid, ...doc.data() };
-                    updateUserInfo();
-                }
+                if (!doc.exists) return;
+                currentUserData = { uid: thisUid, ...doc.data() };
+                updateUserInfo();
             });
 
-            authUnsubscribe = FB.auth.onAuthStateChanged((newUser) => {
-                if (!newUser || newUser.uid !== thisUid) {
-                    if (unsubscribeUser) { unsubscribeUser(); unsubscribeUser = null; }
-                    if (authUnsubscribe) { authUnsubscribe(); authUnsubscribe = null; }
-                }
+            window.addEventListener('beforeunload', () => {
+                if (unsubscribeUser) { unsubscribeUser(); unsubscribeUser = null; }
             });
 
             const params = new URLSearchParams(window.location.search);
