@@ -130,7 +130,7 @@
         }
         .tab {
             flex: 1;
-            min-width: 120px;
+            min-width: 130px;
             padding: 10px 12px;
             text-align: center;
             border-radius: 8px;
@@ -286,27 +286,47 @@
                     <div class="value small" id="statBalance">Rp 0</div>
                 </div>
                 <div class="stat-card pending">
-                    <div class="label">⏳ Pending Withdraw</div>
-                    <div class="value" id="statPending">0</div>
-                </div>
-                <div class="stat-card success">
-                    <div class="label">✅ Top Up Sukses</div>
+                    <div class="label">⏳ Pending Top Up</div>
                     <div class="value" id="statTopup">0</div>
                 </div>
                 <div class="stat-card danger">
-                    <div class="label">📤 Withdraw Sukses</div>
+                    <div class="label">📤 Pending Withdraw</div>
                     <div class="value" id="statWithdraw">0</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="label">👥 Total User</div>
+                    <div class="value" id="statUsers">0</div>
                 </div>
             </div>
 
             <div class="tabs">
-                <div class="tab active" onclick="switchTab('pending')">⏳ PENDING</div>
+                <div class="tab active" onclick="switchTab('pendingTopup')">📥 TOP UP PENDING</div>
+                <div class="tab" onclick="switchTab('pendingWithdraw')">📤 WITHDRAW PENDING</div>
                 <div class="tab" onclick="switchTab('history')">📜 RIWAYAT</div>
                 <div class="tab" onclick="switchTab('users')">👥 USER</div>
             </div>
 
-            <div class="panel" id="panelPending">
-                <h3>⏳ Permintaan Withdraw Menunggu Konfirmasi</h3>
+            <div class="panel" id="panelPendingTopup">
+                <h3>📥 Permintaan Top Up Menunggu Konfirmasi</h3>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Waktu</th>
+                                <th>User</th>
+                                <th>Nominal</th>
+                                <th>Metode</th>
+                                <th>Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pendingTopupBody"></tbody>
+                    </table>
+                </div>
+                <div class="empty" id="pendingTopupEmpty">Tidak ada top up pending.</div>
+            </div>
+
+            <div class="panel" id="panelPendingWithdraw" style="display:none;">
+                <h3>📤 Permintaan Withdraw Menunggu Konfirmasi</h3>
                 <div class="table-wrap">
                     <table>
                         <thead>
@@ -316,14 +336,13 @@
                                 <th>Nominal</th>
                                 <th>Fee</th>
                                 <th>Metode</th>
-                                <th>Status</th>
                                 <th>Aksi</th>
                             </tr>
                         </thead>
-                        <tbody id="pendingBody"></tbody>
+                        <tbody id="pendingWithdrawBody"></tbody>
                     </table>
                 </div>
-                <div class="empty" id="pendingEmpty">Tidak ada permintaan pending.</div>
+                <div class="empty" id="pendingWithdrawEmpty">Tidak ada withdraw pending.</div>
             </div>
 
             <div class="panel" id="panelHistory" style="display:none;">
@@ -387,8 +406,9 @@
 
     <script>
         let adminUser = null;
-        let currentTab = 'pending';
+        let currentTab = 'pendingTopup';
         let currentFilter = 'all';
+        let unsubscribeTopups = null;
         let unsubscribeWithdrawals = null;
         let unsubscribeTx = null;
         let unsubscribeUsers = null;
@@ -404,7 +424,6 @@
         async function doLogin() {
             const email = document.getElementById('adminUser').value.trim();
             const pass = document.getElementById('adminPass').value;
-
             if (!email || !pass) { toast('Email & password wajib diisi', true); return; }
 
             try {
@@ -425,6 +444,7 @@
         }
 
         async function doLogout() {
+            if (unsubscribeTopups) unsubscribeTopups();
             if (unsubscribeWithdrawals) unsubscribeWithdrawals();
             if (unsubscribeTx) unsubscribeTx();
             if (unsubscribeUsers) unsubscribeUsers();
@@ -440,14 +460,27 @@
         }
 
         function setupListeners() {
+            // Top ups
+            unsubscribeTopups = FB.db.collection('topups')
+                .orderBy('time', 'desc').limit(100)
+                .onSnapshot((snap) => {
+                    const list = [];
+                    snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+                    renderPendingTopup(list);
+                    updateStats();
+                });
+
+            // Withdrawals
             unsubscribeWithdrawals = FB.db.collection('withdrawals')
                 .orderBy('time', 'desc').limit(100)
                 .onSnapshot((snap) => {
                     const list = [];
                     snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
-                    renderPending(list);
+                    renderPendingWithdraw(list);
+                    updateStats();
                 });
 
+            // Transactions
             unsubscribeTx = FB.db.collection('transactions')
                 .orderBy('time', 'desc').limit(200)
                 .onSnapshot((snap) => {
@@ -455,9 +488,9 @@
                     snap.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
                     window._txList = list;
                     renderHistory();
-                    updateStats();
                 });
 
+            // Users
             unsubscribeUsers = FB.db.collection('users')
                 .orderBy('createdAt', 'desc').limit(200)
                 .onSnapshot((snap) => {
@@ -469,10 +502,95 @@
                 });
         }
 
-        function renderPending(list) {
+        // ===== TOP UP PENDING =====
+        function renderPendingTopup(list) {
             const pending = list.filter(p => p.status === 'pending');
-            const body = document.getElementById('pendingBody');
-            const empty = document.getElementById('pendingEmpty');
+            const body = document.getElementById('pendingTopupBody');
+            const empty = document.getElementById('pendingTopupEmpty');
+
+            if (pending.length === 0) {
+                body.innerHTML = '';
+                empty.style.display = 'block';
+                return;
+            }
+            empty.style.display = 'none';
+
+            body.innerHTML = pending.map(p => `
+                <tr>
+                    <td>${formatTime(p.time)}</td>
+                    <td><b>${p.username || '-'}</b><br><small style="color:#888">${(p.uid || '').substring(0, 10)}</small></td>
+                    <td style="color:#FFD700;font-weight:bold">${FB.formatRp(p.amount)}</td>
+                    <td>${p.method || '-'}</td>
+                    <td>
+                        <div class="action-row">
+                            <button class="btn-sm btn-approve" onclick="approveTopup('${p.id}')">✓ Approve</button>
+                            <button class="btn-sm btn-reject" onclick="rejectTopup('${p.id}')">✗ Reject</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function approveTopup(id) {
+            if (!confirm('Setujui top up ini? Saldo user akan bertambah.')) return;
+            try {
+                const doc = await FB.db.collection('topups').doc(id).get();
+                if (!doc.exists) {
+                    toast('❌ Data top up tidak ditemukan', true);
+                    return;
+                }
+                const data = doc.data();
+                if (data.status !== 'pending') {
+                    toast('⚠️ Top up sudah diproses', true);
+                    return;
+                }
+
+                // Update saldo user (admin boleh update user lain)
+                const userRef = FB.db.collection('users').doc(data.uid);
+                await userRef.update({
+                    balance: firebase.firestore.FieldValue.increment(data.amount),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                // Update status topup
+                await FB.db.collection('topups').doc(id).update({
+                    status: 'success',
+                    approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    approvedBy: adminUser.email
+                });
+
+                toast(`✅ Top up ${data.username} disetujui. Saldo +${FB.formatRp(data.amount)}`);
+            } catch (e) {
+                console.error(e);
+                toast('❌ Gagal approve: ' + e.message, true);
+            }
+        }
+
+        async function rejectTopup(id) {
+            if (!confirm('Tolak top up ini? Saldo user TIDAK akan bertambah.')) return;
+            try {
+                const doc = await FB.db.collection('topups').doc(id).get();
+                if (!doc.exists) return;
+                const data = doc.data();
+
+                await FB.db.collection('topups').doc(id).update({
+                    status: 'rejected',
+                    rejectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    rejectedBy: adminUser.email
+                });
+
+                toast(`❌ Top up ${data.username} ditolak`);
+            } catch (e) {
+                console.error(e);
+                toast('❌ Gagal reject: ' + e.message, true);
+            }
+        }
+
+        // ===== WITHDRAW PENDING =====
+        function renderPendingWithdraw(list) {
+            const pending = list.filter(p => p.status === 'pending');
+            const body = document.getElementById('pendingWithdrawBody');
+            const empty = document.getElementById('pendingWithdrawEmpty');
 
             if (pending.length === 0) {
                 body.innerHTML = '';
@@ -488,7 +606,6 @@
                     <td>${FB.formatRp(p.amount)}</td>
                     <td style="color:#ff8888">-${FB.formatRp(p.fee || 0)}</td>
                     <td>${p.method}<br><small style="color:#888">${p.account || '-'}</small></td>
-                    <td><span class="badge pending">PENDING</span></td>
                     <td>
                         <div class="action-row">
                             <button class="btn-sm btn-approve" onclick="approveWithdraw('${p.id}')">✓ Approve</button>
@@ -521,7 +638,11 @@
                 const data = doc.data();
 
                 // Kembalikan saldo
-                await FB.setBalance(data.uid, (await FB.getUserData(data.uid)).balance + data.amount);
+                const userRef = FB.db.collection('users').doc(data.uid);
+                await userRef.update({
+                    balance: firebase.firestore.FieldValue.increment(data.amount),
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
 
                 await FB.db.collection('withdrawals').doc(id).update({
                     status: 'rejected',
@@ -536,21 +657,19 @@
             }
         }
 
+        // ===== STATS =====
         function updateStats() {
-            const list = window._txList || [];
             const users = window._usersList || [];
-
             let totalBalance = 0;
             users.forEach(u => totalBalance += (u.balance || 0));
 
-            const topupCount = list.filter(t => t.type === 'topup').length;
-            const withdrawCount = list.filter(t => t.type === 'withdraw').length;
-            const pendingCount = document.querySelectorAll('#pendingBody tr').length;
+            const topupCount = document.querySelectorAll('#pendingTopupBody tr').length;
+            const withdrawCount = document.querySelectorAll('#pendingWithdrawBody tr').length;
 
             document.getElementById('statBalance').textContent = FB.formatRp(totalBalance);
-            document.getElementById('statPending').textContent = pendingCount;
             document.getElementById('statTopup').textContent = topupCount;
             document.getElementById('statWithdraw').textContent = withdrawCount;
+            document.getElementById('statUsers').textContent = users.length;
         }
 
         function setFilter(f, btn) {
@@ -564,9 +683,7 @@
             const search = (document.getElementById('searchHistory').value || '').toLowerCase();
             let list = window._txList || [];
 
-            if (currentFilter !== 'all') {
-                list = list.filter(t => t.type === currentFilter);
-            }
+            if (currentFilter !== 'all') list = list.filter(t => t.type === currentFilter);
             if (search) {
                 list = list.filter(t =>
                     (t.username || '').toLowerCase().includes(search) ||
@@ -586,13 +703,14 @@
 
             body.innerHTML = list.map(t => {
                 const amountColor = t.amount >= 0 ? '#84fab0' : '#ff8888';
+                const statusBadge = t.status === 'pending' ? ' <span class="badge pending">PENDING</span>' : '';
                 return `
                     <tr>
                         <td>${formatTime(t.time)}</td>
                         <td><small style="color:#888">${(t.id || '').substring(0, 10)}</small></td>
                         <td><b>${t.username || '-'}</b></td>
                         <td><small style="color:#888">${(t.uid || '').substring(0, 10)}</small></td>
-                        <td><span class="badge ${t.type}">${t.type.toUpperCase()}</span></td>
+                        <td><span class="badge ${t.type}">${t.type.toUpperCase()}</span>${statusBadge}</td>
                         <td style="color:${amountColor};font-weight:bold">${t.amount >= 0 ? '+' : ''}${FB.formatRp(t.amount)}</td>
                         <td>${t.note || '-'}</td>
                     </tr>
@@ -638,12 +756,14 @@
             currentTab = tab;
             document.querySelectorAll('.tab').forEach((t, i) => {
                 t.classList.toggle('active',
-                    (tab === 'pending' && i === 0) ||
-                    (tab === 'history' && i === 1) ||
-                    (tab === 'users' && i === 2)
+                    (tab === 'pendingTopup' && i === 0) ||
+                    (tab === 'pendingWithdraw' && i === 1) ||
+                    (tab === 'history' && i === 2) ||
+                    (tab === 'users' && i === 3)
                 );
             });
-            document.getElementById('panelPending').style.display = tab === 'pending' ? 'block' : 'none';
+            document.getElementById('panelPendingTopup').style.display = tab === 'pendingTopup' ? 'block' : 'none';
+            document.getElementById('panelPendingWithdraw').style.display = tab === 'pendingWithdraw' ? 'block' : 'none';
             document.getElementById('panelHistory').style.display = tab === 'history' ? 'block' : 'none';
             document.getElementById('panelUsers').style.display = tab === 'users' ? 'block' : 'none';
         }
@@ -659,8 +779,7 @@
             }
         });
 
-        // Register SW
         FB.registerSW();
     </script>
 </body>
-                  </html>
+</html>
