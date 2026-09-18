@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💳 Pembayaran — Fruit Crush</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', sans-serif; }
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 20px;
+            color: white;
+        }
+        .container {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 20px;
+            padding: 25px;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: 0 25px 70px rgba(0,0,0,0.8), 0 0 0 3px rgba(255, 215, 0, 0.3);
+            border: 2px solid rgba(255, 215, 0, 0.4);
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.6em;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+        }
+        .sub { text-align: center; color: #888; font-size: 0.8em; margin-bottom: 20px; }
+        .user-info {
+            background: rgba(0, 212, 255, 0.1);
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            border-radius: 10px;
+            padding: 10px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-size: 0.85em;
+        }
+        .user-info .label { color: #00D4FF; font-size: 0.75em; text-transform: uppercase; letter-spacing: 1px; }
+        .user-info .value { font-weight: bold; color: #FFD700; font-size: 1.1em; }
+        .tabs {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 15px;
+            background: rgba(0,0,0,0.3);
+            padding: 5px;
+            border-radius: 12px;
+        }
+        .tab {
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 0.85em;
+            transition: all 0.2s;
+            color: #888;
+        }
+        .tab.active { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #333; }
+        .tab.topup.active { background: linear-gradient(135deg, #00b894 0%, #00a085 100%); color: white; }
+        .tab.withdraw.active { background: linear-gradient(135deg, #e17055 0%, #c0392b 100%); color: white; }
+        .section { display: none; }
+        .section.active { display: block; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 15px; }
+        .option {
+            background: linear-gradient(135deg, #2d2d4a 0%, #1a1a2e 100%);
+            color: white;
+            border: 2px solid rgba(0, 212, 255, 0.4);
+            border-radius: 10px;
+            padding: 14px 8px;
+            font-size: 0.9em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+        }
+        .option:hover { border-color: #00D4FF; transform: translateY(-2px); }
+        .option.selected { background: linear-gradient(135deg, #00D4FF 0%, #0099CC 100%); border-color: #00D4FF; color: white; }
+        .option.topup-option.selected { background: linear-gradient(135deg, #00b894 0%, #00a085 100%); border-color: #00b894; }
+        .option.withdraw-option.selected { background: linear-gradient(135deg, #e17055 0%, #c0392b 100%); border-color: #e17055; }
+        .option .amount { font-size: 1.1em; color: #FFD700; display: block; }
+        .option.selected .amount { color: white; }
+        .option .bonus { font-size: 0.65em; color: #84fab0; display: block; margin-top: 3px; }
+        .custom-input {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            color: white;
+            font-size: 1em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 12px;
+            outline: none;
+        }
+        .custom-input:focus { border-color: #00D4FF; box-shadow: 0 0 15px rgba(0, 212, 255, 0.4); }
+        .method-title {
+            font-size: 0.8em;
+            color: #00D4FF;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        .methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 15px; }
+        .method {
+            background: linear-gradient(135deg, #2d2d4a 0%, #1a1a2e 100%);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 10px 4px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.75em;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        .method:hover { border-color: rgba(255,255,255,0.4); }
+        .method.selected { border-color: #FFD700; background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #333; }
+        .method .icon { font-size: 1.5em; display: block; margin-bottom: 3px; }
+        .summary {
+            background: rgba(255, 215, 0, 0.08);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.85em;
+        }
+        .summary-row { display: flex; justify-content: space-between; padding: 4px 0; }
+        .summary-row.total {
+            border-top: 1px solid rgba(255,255,255,0.15);
+            margin-top: 6px;
+            padding-top: 8px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .summary-row.total .value { color: #FFD700; }
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1em;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 8px;
+        }
+        .btn-primary { background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%); color: #333; }
+        .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(255, 215, 0, 0.5); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .alert {
+            padding: 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+            text-align: center;
+            display: none;
+        }
+        .alert.show { display: block; }
+        .alert.success { background: rgba(0, 184, 148, 0.2); border: 1px solid #00b894; color: #84fab0; }
+        .alert.error { background: rgba(255, 60, 60, 0.2); border: 1px solid #ff3c3c; color: #ff8888; }
+        .back-link {
+            display: block;
+            text-align: center;
+            color: #888;
+            font-size: 0.85em;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+        .back-link:hover { color: #FFD700; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 id="pageTitle">💳 PEMBAYARAN</h1>
+        <div class="sub">Fruit Crush Special — Top Up & Tarik</div>
+
+        <div class="user-info">
+            <div>
+                <div class="label">User</div>
+                <div class="value" id="userName">-</div>
+            </div>
+            <div style="text-align:right">
+                <div class="label">Saldo</div>
+                <div class="value" id="userBalance">Rp 0</div>
+            </div>
+        </div>
+
+        <div class="tabs">
+            <div class="tab topup active" id="tabTopup" onclick="switchTab('topup')">📥 TOP UP</div>
+            <div class="tab withdraw" id="tabWithdraw" onclick="switchTab('withdraw')">📤 TARIK</div>
+        </div>
+
+        <div class="alert" id="alertBox"></div>
+
+        <div class="section active" id="sectionTopup">
+            <div class="method-title">Pilih Nominal</div>
+            <div class="grid" id="topupGrid">
+                <div class="option topup-option" data-amount="5000"><span class="amount">5,000</span></div>
+                <div class="option topup-option" data-amount="10000"><span class="amount">10,000</span></div>
+                <div class="option topup-option" data-amount="25000">
+                    <span class="amount">25,000</span>
+                    <span class="bonus">+5% Bonus</span>
+                </div>
+                <div class="option topup-option" data-amount="50000">
+                    <span class="amount">50,000</span>
+                    <span class="bonus">+10% Bonus</span>
+                </div>
+                <div class="option topup-option" data-amount="100000">
+                    <span class="amount">100,000</span>
+                    <span class="bonus">+15% Bonus</span>
+                </div>
+                <div class="option topup-option" data-amount="500000">
+                    <span class="amount">500,000</span>
+                    <span class="bonus">+25% Bonus</span>
+                </div>
+            </div>
+
+            <input type="number" class="custom-input" id="topupCustom" placeholder="Nominal lain (min 1,000)" min="1000">
+
+            <div class="method-title">Metode Pembayaran</div>
+            <div class="methods" id="topupMethods">
+                <div class="method selected" data-method="QRIS"><span class="icon">📱</span>QRIS</div>
+                <div class="method" data-method="Bank"><span class="icon">🏦</span>Bank</div>
+                <div class="method" data-method="E-Wallet"><span class="icon">💳</span>E-Wallet</div>
+            </div>
+
+            <div class="summary">
+                <div class="summary-row"><span>Nominal</span><span id="topupAmountDisplay">Rp 0</span></div>
+                <div class="summary-row"><span>Bonus</span><span id="topupBonusDisplay">Rp 0</span></div>
+                <div class="summary-row"><span>Metode</span><span id="topupMethodDisplay">QRIS</span></div>
+                <div class="summary-row total"><span>Total Diterima</span><span class="value" id="topupTotalDisplay">Rp 0</span></div>
+            </div>
+
+            <button class="btn btn-primary" id="btnConfirmTopup" onclick="confirmTopup()">💳 KONFIRMASI TOP UP</button>
+        </div>
+
+        <div class="section" id="sectionWithdraw">
+            <div class="method-title">Pilih Nominal</div>
+            <div class="grid" id="withdrawGrid">
+                <div class="option withdraw-option" data-amount="10000"><span class="amount">10,000</span></div>
+                <div class="option withdraw-option" data-amount="25000"><span class="amount">25,000</span></div>
+                <div class="option withdraw-option" data-amount="50000"><span class="amount">50,000</span></div>
+                <div class="option withdraw-option" data-amount="100000"><span class="amount">100,000</span></div>
+                <div class="option withdraw-option" data-amount="250000"><span class="amount">250,000</span></div>
+                <div class="option withdraw-option" data-amount="ALL">
+                    <span class="amount">ALL IN</span>
+                    <span class="bonus">Tarik Semua</span>
+                </div>
+            </div>
+
+            <input type="number" class="custom-input" id="withdrawCustom" placeholder="Nominal lain (min 10,000)" min="10000">
+
+            <div class="method-title">Metode Pencairan</div>
+            <div class="methods" id="withdrawMethods">
+                <div class="method selected" data-method="Bank"><span class="icon">🏦</span>Bank</div>
+                <div class="method" data-method="E-Wallet"><span class="icon">💳</span>E-Wallet</div>
+                <div class="method" data-method="Pulsa"><span class="icon">📞</span>Pulsa</div>
+            </div>
+
+            <input type="text" class="custom-input" id="withdrawAccount" placeholder="No. Rekening / E-Wallet / HP">
+
+            <div class="summary">
+                <div class="summary-row"><span>Nominal</span><span id="withdrawAmountDisplay">Rp 0</span></div>
+                <div class="summary-row"><span>Admin Fee</span><span id="withdrawFeeDisplay">Rp 0</span></div>
+                <div class="summary-row"><span>Metode</span><span id="withdrawMethodDisplay">Bank</span></div>
+                <div class="summary-row total"><span>Total Diterima</span><span class="value" id="withdrawTotalDisplay">Rp 0</span></div>
+            </div>
+
+            <button class="btn btn-primary" id="btnConfirmWithdraw" onclick="confirmWithdraw()">📤 KONFIRMASI TARIK</button>
+        </div>
+
+        <a href="index.html" class="back-link">← Kembali ke Game</a>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <script src="firebase-config.js"></script>
+
+    <script>
+        let currentUser = null;
+        let currentUserData = null;
+
+        let state = {
+            mode: 'topup',
+            topupAmount: 0,
+            topupMethod: 'QRIS',
+            withdrawAmount: 0,
+            withdrawMethod: 'Bank'
+        };
+
+        function showAlert(msg, type = 'success') {
+            const el = document.getElementById('alertBox');
+            el.textContent = msg;
+            el.className = 'alert show ' + type;
+            setTimeout(() => el.classList.remove('show'), 3500);
+        }
+
+        function updateUserInfo() {
+            if (!currentUser || !currentUserData) return;
+            document.getElementById('userName').textContent = currentUserData.username || currentUser.email;
+            document.getElementById('userBalance').textContent = FB.formatRp(currentUserData.balance || 0);
+        }
+
+        function switchTab(mode) {
+            state.mode = mode;
+            document.getElementById('tabTopup').classList.toggle('active', mode === 'topup');
+            document.getElementById('tabWithdraw').classList.toggle('active', mode === 'withdraw');
+            document.getElementById('sectionTopup').classList.toggle('active', mode === 'topup');
+            document.getElementById('sectionWithdraw').classList.toggle('active', mode === 'withdraw');
+            document.getElementById('pageTitle').textContent = mode === 'topup' ? '📥 TOP UP' : '📤 TARIK SALDO';
+        }
+
+        function calcBonus(amount) {
+            if (amount === 25000) return Math.floor(amount * 0.05);
+            if (amount === 50000) return Math.floor(amount * 0.10);
+            if (amount === 100000) return Math.floor(amount * 0.15);
+            if (amount === 500000) return Math.floor(amount * 0.25);
+            return 0;
+        }
+
+        function updateTopupSummary() {
+            const bonus = calcBonus(state.topupAmount);
+            const total = state.topupAmount + bonus;
+            document.getElementById('topupAmountDisplay').textContent = FB.formatRp(state.topupAmount);
+            document.getElementById('topupBonusDisplay').textContent = FB.formatRp(bonus);
+            document.getElementById('topupMethodDisplay').textContent = state.topupMethod;
+            document.getElementById('topupTotalDisplay').textContent = FB.formatRp(total);
+        }
+
+        function updateWithdrawSummary() {
+            const fee = state.withdrawAmount >= 50000 ? 2500 : 1500;
+            const total = Math.max(0, state.withdrawAmount - fee);
+            document.getElementById('withdrawAmountDisplay').textContent = FB.formatRp(state.withdrawAmount);
+            document.getElementById('withdrawFeeDisplay').textContent = FB.formatRp(state.withdrawAmount > 0 ? fee : 0);
+            document.getElementById('withdrawMethodDisplay').textContent = state.withdrawMethod;
+            document.getElementById('withdrawTotalDisplay').textContent = FB.formatRp(total);
+        }
+
+        // ===== EVENT BINDINGS =====
+        document.querySelectorAll('#topupGrid .option').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#topupGrid .option').forEach(o => o.classList.remove('selected'));
+                el.classList.add('selected');
+                state.topupAmount = parseInt(el.dataset.amount);
+                document.getElementById('topupCustom').value = '';
+                updateTopupSummary();
+            });
+        });
+
+        document.getElementById('topupCustom').addEventListener('input', (e) => {
+            state.topupAmount = parseInt(e.target.value) || 0;
+            document.querySelectorAll('#topupGrid .option').forEach(o => o.classList.remove('selected'));
+            updateTopupSummary();
+        });
+
+        document.querySelectorAll('#topupMethods .method').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#topupMethods .method').forEach(m => m.classList.remove('selected'));
+                el.classList.add('selected');
+                state.topupMethod = el.dataset.method;
+                updateTopupSummary();
+            });
+        });
+
+        document.querySelectorAll('#withdrawGrid .option').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#withdrawGrid .option').forEach(o => o.classList.remove('selected'));
+                el.classList.add('selected');
+                if (el.dataset.amount === 'ALL') {
+                    state.withdrawAmount = currentUserData ? currentUserData.balance : 0;
+                } else {
+                    state.withdrawAmount = parseInt(el.dataset.amount);
+                }
+                document.getElementById('withdrawCustom').value = '';
+                updateWithdrawSummary();
+            });
+        });
+
+        document.getElementById('withdrawCustom').addEventListener('input', (e) => {
+            state.withdrawAmount = parseInt(e.target.value) || 0;
+            document.querySelectorAll('#withdrawGrid .option').forEach(o => o.classList.remove('selected'));
+            updateWithdrawSummary();
+        });
+
+        document.querySelectorAll('#withdrawMethods .method').forEach(el => {
+            el.addEventListener('click', () => {
+                document.querySelectorAll('#withdrawMethods .method').forEach(m => m.classList.remove('selected'));
+                el.classList.add('selected');
+                state.withdrawMethod = el.dataset.method;
+                updateWithdrawSummary();
+            });
+        });
+
+        // ===== CONFIRM TOPUP =====
+        function confirmTopup() {
+            if (!currentUser) return;
+            if (state.topupAmount < 1000) {
+                showAlert('Minimal top up Rp 1.000', 'error');
+                return;
+            }
+
+            const bonus = calcBonus(state.topupAmount);
+
+            if (state.topupMethod === 'QRIS') {
+                window.location.href = `qris.html?amount=${state.topupAmount}&bonus=${bonus}&method=QRIS`;
+                return;
+            }
+
+            const total = state.topupAmount + bonus;
+            const btn = document.getElementById('btnConfirmTopup');
+            btn.disabled = true;
+            btn.textContent = '⏳ MEMPROSES...';
+
+            (async () => {
+                try {
+                    await FB.updateBalance(currentUser.uid, total);
+                    await FB.logTransaction({
+                        uid: currentUser.uid,
+                        username: currentUserData.username,
+                        type: 'topup',
+                        amount: total,
+                        note: `Top up via ${state.topupMethod}`,
+                        extra: { amount: state.topupAmount, bonus, method: state.topupMethod }
+                    });
+                    showAlert(`✅ Top up berhasil! Saldo +${FB.formatRp(total)}`, 'success');
+                    setTimeout(() => window.location.href = 'index.html', 1500);
+                } catch (e) {
+                    console.error(e);
+                    showAlert('❌ Gagal memproses top up', 'error');
+                    btn.disabled = false;
+                    btn.textContent = '💳 KONFIRMASI TOP UP';
+                }
+            })();
+        }
+
+        // ===== CONFIRM WITHDRAW =====
+        async function confirmWithdraw() {
+            if (!currentUser) return;
+            if (state.withdrawAmount < 10000) {
+                showAlert('Minimal tarik Rp 10.000', 'error');
+                return;
+            }
+            if (state.withdrawAmount > (currentUserData.balance || 0)) {
+                showAlert('Saldo tidak cukup!', 'error');
+                return;
+            }
+            const account = document.getElementById('withdrawAccount').value.trim();
+            if (!account) {
+                showAlert('Isi nomor rekening / e-wallet dulu!', 'error');
+                return;
+            }
+
+            const fee = state.withdrawAmount >= 50000 ? 2500 : 1500;
+            const total = state.withdrawAmount - fee;
+
+            const btn = document.getElementById('btnConfirmWithdraw');
+            btn.disabled = true;
+            btn.textContent = '⏳ MEMPROSES...';
+
+            try {
+                await FB.updateBalance(currentUser.uid, -state.withdrawAmount);
+
+                await FB.db.collection('withdrawals').add({
+                    uid: currentUser.uid,
+                    username: currentUserData.username,
+                    amount: state.withdrawAmount,
+                    fee,
+                    total,
+                    method: state.withdrawMethod,
+                    account,
+                    status: 'pending',
+                    time: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await FB.logTransaction({
+                    uid: currentUser.uid,
+                    username: currentUserData.username,
+                    type: 'withdraw',
+                    amount: -state.withdrawAmount,
+                    note: `Tarik via ${state.withdrawMethod}`,
+                    extra: { method: state.withdrawMethod, account, fee, total }
+                });
+
+                showAlert(`✅ Permintaan tarik ${FB.formatRp(state.withdrawAmount)} dikirim. Menunggu admin.`, 'success');
+                setTimeout(() => window.location.href = 'index.html', 2000);
+            } catch (e) {
+                console.error(e);
+                showAlert('❌ Gagal memproses tarik', 'error');
+                btn.disabled = false;
+                btn.textContent = '📤 KONFIRMASI TARIK';
+            }
+        }
+
+        // ===== INIT =====
+        (async function init() {
+            const user = await FB.requireAuth('pembayaran.html');
+            if (!user) return;
+            currentUser = user;
+
+            const data = await FB.getUserData(user.uid);
+            if (!data) {
+                window.location.href = 'login.html';
+                return;
+            }
+            currentUserData = data;
+
+            FB.db.collection('users').doc(user.uid).onSnapshot((doc) => {
+                if (doc.exists) {
+                    currentUserData = doc.data();
+                    updateUserInfo();
+                }
+            });
+
+            const params = new URLSearchParams(window.location.search);
+            switchTab(params.get('mode') || 'topup');
+            updateUserInfo();
+            updateTopupSummary();
+            updateWithdrawSummary();
+        })();
+    </script>
+</body>
+</html>
