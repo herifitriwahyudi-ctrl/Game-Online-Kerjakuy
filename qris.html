@@ -286,8 +286,7 @@
 
         <div class="qr-box">
             <div class="qr-logo">QRIS <span>●</span> GPN</div>
-            <img src="qris.png" alt="QRIS Code" class="qr-image" id="qrisImage"
-                onerror="handleQrisError()" onload="handleQrisLoad()">
+            <img src="qris.png" alt="QRIS Code" class="qr-image" id="qrisImage">
             <div class="qr-placeholder" id="qrPlaceholder" style="display:none;">
                 <div class="big-icon">📷</div>
                 <div><b>qris.png tidak ditemukan</b></div>
@@ -355,15 +354,6 @@
             el._t = setTimeout(() => el.classList.remove('show'), 3000);
         }
 
-        function handleQrisError() {
-            document.getElementById('qrisImage').style.display = 'none';
-            document.getElementById('qrPlaceholder').style.display = 'flex';
-        }
-        function handleQrisLoad() {
-            document.getElementById('qrisImage').style.display = 'block';
-            document.getElementById('qrPlaceholder').style.display = 'none';
-        }
-
         function startTimer() {
             updateTimerDisplay();
             timerInterval = setInterval(() => {
@@ -400,10 +390,7 @@
 
         async function confirmPaid() {
             if (paid) return;
-            if (timeLeft <= 0) {
-                toast('⏰ Waktu sudah habis', 'error');
-                return;
-            }
+            if (timeLeft <= 0) { toast('⏰ Waktu sudah habis', 'error'); return; }
 
             const user = FB.auth.currentUser;
             if (!user) {
@@ -411,7 +398,6 @@
                 setTimeout(() => window.location.href = 'login.html', 1500);
                 return;
             }
-
             if (urlUid && urlUid !== user.uid) {
                 console.error('UID mismatch!', urlUid, '!==', user.uid);
                 toast('❌ User mismatch. Silakan ulangi.', 'error');
@@ -431,25 +417,12 @@
                 console.log('=== TOP UP QRIS (PENDING) ===');
                 console.log('UID:', targetUid, '| User:', freshData.username, '| Nominal:', amount);
 
-                await FB.db.collection('topups').add({
+                // ✅ Pakai helper terpusat
+                await FB.createPendingTopup({
                     uid: targetUid,
                     username: freshData.username,
-                    amount: amount,
-                    total: amount,
-                    method: 'QRIS',
-                    status: 'pending',
-                    time: firebase.firestore.FieldValue.serverTimestamp()
-                });
-
-                await FB.db.collection('transactions').add({
-                    uid: targetUid,
-                    username: freshData.username,
-                    type: 'topup',
-                    amount: amount,
-                    note: 'Top up via QRIS (menunggu approve admin)',
-                    extra: { amount, method: 'QRIS', status: 'pending' },
-                    status: 'pending',
-                    time: firebase.firestore.FieldValue.serverTimestamp()
+                    amount,
+                    method: 'QRIS'
                 });
 
                 paid = true;
@@ -466,9 +439,7 @@
                 toast('⏳ Pembayaran dikirim. Menunggu approve admin.', 'info');
                 btn.textContent = '⏳ MENUNGGU ADMIN';
 
-                setTimeout(() => {
-                    window.location.href = 'index.html';
-                }, 4000);
+                setTimeout(() => { window.location.href = 'index.html'; }, 4000);
             } catch (e) {
                 console.error('❌ confirmPaid error:', e);
                 toast('❌ Gagal: ' + e.message, 'error');
@@ -478,20 +449,29 @@
         }
 
         function cancelPayment() {
-            if (paid) {
-                window.location.href = 'index.html';
-                return;
-            }
+            if (paid) { window.location.href = 'index.html'; return; }
             if (confirm('Batalkan pembayaran? Saldo tidak akan ditambahkan.')) {
                 clearInterval(timerInterval);
                 window.location.href = 'pembayaran.html?mode=topup';
             }
         }
 
+        // ===== INIT =====
         (async function init() {
             FB.registerSW();
-
             console.log('=== INIT qris.html ===');
+
+            // ✅ FIX: attach event listener SETELAH DOM ready (bukan inline onerror)
+            const qrisImg = document.getElementById('qrisImage');
+            qrisImg.addEventListener('error', function() {
+                this.style.display = 'none';
+                document.getElementById('qrPlaceholder').style.display = 'flex';
+            });
+            qrisImg.addEventListener('load', function() {
+                this.style.display = 'block';
+                document.getElementById('qrPlaceholder').style.display = 'none';
+            });
+
             const user = await FB.requireAuth('qris.html' + window.location.search);
             if (!user) return;
             currentUid = user.uid;
@@ -505,9 +485,7 @@
 
             if (amount <= 0) {
                 toast('❌ Nominal tidak valid', 'error');
-                setTimeout(() => {
-                    window.location.href = 'pembayaran.html?mode=topup';
-                }, 1500);
+                setTimeout(() => { window.location.href = 'pembayaran.html?mode=topup'; }, 1500);
                 return;
             }
 
