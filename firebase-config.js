@@ -13,83 +13,81 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
-// ===== OFFLINE PERSISTENCE (sekali saja) =====
-let _persistenceEnabled = false;
-(function enablePersistence() {
-    if (_persistenceEnabled) return;
-    _persistenceEnabled = true;
-    db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
-        if (err.code === 'failed-precondition') {
-            console.warn('⚠️ Persistence failed: multiple tabs open');
-        } else if (err.code === 'unimplemented') {
-            console.warn('⚠️ Persistence not available');
-        }
-    });
-})();
-
-// ===== AUTH STATE CACHE (SINGLE SOURCE OF TRUTH) =====
-// undefined = belum tahu, null = logged out, object = logged in
-let _cachedUser = undefined;
-let _authReadyPromise = null;
-
-function _initAuthWatcher() {
-    if (_authReadyPromise) return _authReadyPromise;
-    _authReadyPromise = new Promise((resolve) => {
-        let resolved = false;
-        const unsub = auth.onAuthStateChanged((user) => {
-            if (resolved) return;
-            resolved = true;
-            _cachedUser = user || null;
-            unsub();
-            resolve(_cachedUser);
-        });
-        // Fallback: kalau Firebase hang
-        setTimeout(() => {
-            if (resolved) return;
-            resolved = true;
-            try { unsub(); } catch (e) {}
-            _cachedUser = auth.currentUser || null;
-            resolve(_cachedUser);
-        }, 4000);
-    });
-    return _authReadyPromise;
-}
-
-// Reset cache saat logout (biar halaman berikutnya re-check)
-auth.onAuthStateChanged((user) => {
-    if (_cachedUser !== undefined && user === null) {
-        _cachedUser = null;
+// Persistensi offline — penting supaya session tetap ada saat pindah halaman
+db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+    if (err.code === 'failed-precondition') {
+        console.warn('Persistence failed: multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+        console.warn('Persistence not available');
     }
 });
+
+// ===== ATURAN BISNIS (satu sumber, dipakai semua halaman) =====
+const LIMITS = {
+    MIN_TOPUP: 1000,
+    MAX_TOPUP: 50000000,
+    MIN_WITHDRAW: 10000,
+    FEE_LOW: 1500,        // tarik < 50.000
+    FEE_HIGH: 2500,       // tarik >= 50.000
+    FEE_THRESHOLD: 50000
+};
+
+function currentUidOrThrow(uid) {
+    const cur = auth.currentUser ? auth.currentUser.uid : null;
+    if (!cur) throw new Error('User tidak login');
+    if (uid && cur !== uid) throw new Error('UID mismatch: tidak boleh mengubah data user lain');
+    return cur;
+}
 
 window.FB = {
     auth,
     db,
+    LIMITS,
 
-    // ✅ FIX: waitForAuth pakai cache — hanya listen sekali
+    // Tunggu Firebase Auth selesai memuat session (hindari redirect ke login padahal sudah login)
     waitForAuth() {
-        if (_cachedUser !== undefined) {
-            return Promise.resolve(_cachedUser);
-        }
-        return _initAuthWatcher();
+        return new Promise((resolve) => {
+            if (auth.currentUser) {
+                resolve(auth.currentUser);
+                return;
+            }
+
+            let resolved = false;
+            const unsub = auth.onAuthStateChanged((user) => {
+                if (resolved) return;
+                resolved = true;
+                unsub();
+                resolve(user);
+            });
+
+            // Fallback timeout 5 detik — kalau Firebase hang
+            setTimeout(() => {
+                if (resolved) return;
+                resolved = true;
+                unsub();
+                console.warn('⚠️ waitForAuth: timeout, resolve dengan currentUser');
+                resolve(auth.currentUser);
+            }, 5000);
+        });
     },
 
-    // ✅ FIX: requireAuth hindari redirect loop
     async requireAuth(redirectTo) {
         const user = await this.waitForAuth();
         if (!user) {
             const next = redirectTo || (window.location.pathname.split('/').pop() + window.location.search);
-            console.log('❌ Not authenticated, redirect to login. Next:', next);
-            if (!window.location.pathname.endsWith('login.html')) {
-                window.location.href = 'login.html?next=' + encodeURIComponent(next);
-            }
+            window.location.href = 'login.html?next=' + encodeURIComponent(next);
             return null;
         }
         return user;
     },
 
+    // Cegah open-redirect: hanya izinkan nama file .html relatif di folder yang sama
+    safeNext(next, fallback = 'index.html') {
+        if (typeof next !== 'string') return fallback;
+        return /^[A-Za-z0-9_\-]+\.html(\?[A-Za-z0-9_\-=&%.]*)?$/.test(next) ? next : fallback;
+    },
+
     async getUserData(uid) {
-        if (!uid) return null;
         try {
             const doc = await db.collection('users').doc(uid).get();
             return doc.exists ? { uid, ...doc.data() } : null;
@@ -99,113 +97,173 @@ window.FB = {
         }
     },
 
+    // Dipakai game (index.html): tambah/kurangi saldo milik user yang sedang login
     async updateBalance(uid, delta) {
         if (!uid) throw new Error('UID wajib diisi');
         if (typeof delta !== 'number' || isNaN(delta)) throw new Error('Delta tidak valid');
+        currentUidOrThrow(uid);
 
-        const currentUid = auth.currentUser ? auth.currentUser.uid : null;
-        if (!currentUid) throw new Error('User tidak login');
-        if (currentUid !== uid) throw new Error('UID mismatch: tidak boleh update saldo user lain');
-
-        const userRef = db.collection('users').doc(uid);
-        await userRef.update({
+        await db.collection('users').doc(uid).update({
             balance: firebase.firestore.FieldValue.increment(delta),
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
     },
 
-    // ✅ setBalance dengan validasi lengkap
+    // Sebelumnya TANPA cek login/UID — sekarang sama ketatnya dengan updateBalance
     async setBalance(uid, value) {
         if (!uid) throw new Error('UID wajib diisi');
-        if (typeof value !== 'number' || isNaN(value)) throw new Error('Value tidak valid');
-        const currentUid = auth.currentUser ? auth.currentUser.uid : null;
-        if (!currentUid) throw new Error('User tidak login');
-        if (currentUid !== uid) throw new Error('UID mismatch');
-        const userRef = db.collection('users').doc(uid);
-        await userRef.update({
+        if (typeof value !== 'number' || isNaN(value) || value < 0) throw new Error('Nilai saldo tidak valid');
+        currentUidOrThrow(uid);
+
+        await db.collection('users').doc(uid).update({
             balance: value,
             updatedAt: firebase.firestore.FieldValue.serverTimestamp()
         });
     },
 
-    async logTransaction({ uid, username, type, amount, note, extra }) {
+    // Dipakai game (index.html) untuk mencatat transaksi yang sudah selesai
+    async logTransaction({ uid, username, type, amount, note, extra, status }) {
         if (!uid) throw new Error('UID wajib untuk log transaksi');
-        const currentUid = auth.currentUser ? auth.currentUser.uid : null;
-        if (!currentUid) throw new Error('User tidak login');
-        if (currentUid !== uid) throw new Error('UID mismatch pada log transaksi');
+        currentUidOrThrow(uid);
 
         return db.collection('transactions').add({
-            uid,
+            uid: uid,
             username: username || 'unknown',
             type,
             amount: Number(amount),
             note: note || '',
             extra: extra || {},
-            status: 'success',
+            status: status || 'success',
             time: firebase.firestore.FieldValue.serverTimestamp()
         });
     },
 
-    // ✅ HELPER TERPUSAT: buat top up pending (dipakai qris.html & pembayaran.html)
-    async createPendingTopup({ uid, username, amount, method }) {
-        if (!uid || !username) throw new Error('UID & username wajib');
-        if (!amount || amount < 1000) throw new Error('Nominal minimal Rp 1.000');
+    calcWithdrawFee(amount) {
+        if (!(amount > 0)) return 0;
+        return amount >= LIMITS.FEE_THRESHOLD ? LIMITS.FEE_HIGH : LIMITS.FEE_LOW;
+    },
 
-        const currentUid = auth.currentUser ? auth.currentUser.uid : null;
-        if (currentUid !== uid) throw new Error('UID mismatch');
+    // ===== TOP UP: satu-satunya pintu masuk (dipakai pembayaran.html & qris.html) =====
+    // orderId opsional → idempotent: kirim ulang order yang sama ditolak (tidak dobel).
+    // Dokumen topups & transactions dibuat ATOMIK dan saling terhubung lewat txId.
+    async requestTopup({ amount, method, orderId }) {
+        const uid = currentUidOrThrow();
+        amount = Math.floor(Number(amount));
+        if (!Number.isFinite(amount) || amount < LIMITS.MIN_TOPUP) {
+            throw new Error('Minimal top up ' + FB.formatRp(LIMITS.MIN_TOPUP));
+        }
+        if (amount > LIMITS.MAX_TOPUP) {
+            throw new Error('Maksimal top up ' + FB.formatRp(LIMITS.MAX_TOPUP));
+        }
 
-        const methodName = method || 'QRIS';
+        const userData = await FB.getUserData(uid);
+        if (!userData) throw new Error('Data user tidak ditemukan');
 
-        // 1. Buat dokumen topup
-        const topupRef = await db.collection('topups').add({
-            uid,
-            username,
-            amount,
-            total: amount,
-            method: methodName,
-            status: 'pending',
-            time: firebase.firestore.FieldValue.serverTimestamp()
-        });
+        const topupRef = orderId ? db.collection('topups').doc(orderId) : db.collection('topups').doc();
+        const txRef = db.collection('transactions').doc();
+        const ts = firebase.firestore.FieldValue.serverTimestamp();
 
-        // 2. Log transaksi pending
-        await db.collection('transactions').add({
-            uid,
-            username,
-            type: 'topup',
-            amount,
-            note: `Top up via ${methodName} (menunggu approve admin)`,
-            extra: {
+        await db.runTransaction(async (tx) => {
+            if (orderId) {
+                const existing = await tx.get(topupRef);
+                if (existing.exists) {
+                    const err = new Error('Pesanan ini sudah pernah dikirim.');
+                    err.code = 'order-exists';
+                    throw err;
+                }
+            }
+            tx.set(topupRef, {
+                uid,
+                username: userData.username,
                 amount,
-                method: methodName,
+                total: amount,
+                method,
                 status: 'pending',
-                topupId: topupRef.id
-            },
-            status: 'pending',
-            time: firebase.firestore.FieldValue.serverTimestamp()
+                txId: txRef.id,
+                time: ts
+            });
+            tx.set(txRef, {
+                uid,
+                username: userData.username,
+                type: 'topup',
+                amount,
+                note: `Top up via ${method} (menunggu approve admin)`,
+                extra: { method, refId: topupRef.id },
+                status: 'pending',
+                time: ts
+            });
         });
 
         return topupRef.id;
     },
 
+    // ===== WITHDRAW: potong saldo + catat permintaan + catat transaksi dalam SATU transaksi =====
+    // (sebelumnya 3 langkah terpisah: saldo terpotong tapi permintaan bisa gagal tercatat,
+    //  dan pengecekan saldo bisa "balapan" sehingga saldo jadi minus)
+    async requestWithdraw({ amount, method, account }) {
+        const uid = currentUidOrThrow();
+        amount = Math.floor(Number(amount));
+        if (!Number.isFinite(amount) || amount < LIMITS.MIN_WITHDRAW) {
+            throw new Error('Minimal tarik ' + FB.formatRp(LIMITS.MIN_WITHDRAW));
+        }
+        if (!account) throw new Error('Nomor rekening / e-wallet wajib diisi');
+
+        const fee = FB.calcWithdrawFee(amount);
+        const total = amount - fee;
+
+        const userRef = db.collection('users').doc(uid);
+        const wdRef = db.collection('withdrawals').doc();
+        const txRef = db.collection('transactions').doc();
+        const ts = firebase.firestore.FieldValue.serverTimestamp();
+
+        await db.runTransaction(async (tx) => {
+            const snap = await tx.get(userRef);
+            if (!snap.exists) throw new Error('Data user tidak ditemukan');
+            const user = snap.data();
+            const balance = Number(user.balance) || 0;
+            if (amount > balance) throw new Error('Saldo tidak cukup!');
+
+            tx.update(userRef, { balance: balance - amount, updatedAt: ts });
+            tx.set(wdRef, {
+                uid,
+                username: user.username,
+                amount,
+                fee,
+                total,
+                method,
+                account,
+                status: 'pending',
+                txId: txRef.id,
+                time: ts
+            });
+            tx.set(txRef, {
+                uid,
+                username: user.username,
+                type: 'withdraw',
+                amount: -amount,
+                note: `Tarik via ${method} (menunggu proses admin)`,
+                extra: { method, account, fee, total, refId: wdRef.id },
+                status: 'pending',
+                time: ts
+            });
+        });
+
+        return { id: wdRef.id, fee, total };
+    },
+
     formatRp(n) {
-        return 'Rp ' + Math.round(n || 0).toLocaleString('id-ID');
+        return 'Rp ' + Math.round(Number(n) || 0).toLocaleString('id-ID');
     },
 
     formatNumber(n) {
-        return Math.round(n || 0).toLocaleString('id-ID');
+        return Math.round(Number(n) || 0).toLocaleString('id-ID');
     },
 
     async logout() {
-        try {
-            await auth.signOut();
-        } catch (e) {
-            console.warn('signOut error:', e);
-        }
+        await auth.signOut();
         if ('caches' in window) {
-            try {
-                const names = await caches.keys();
-                await Promise.all(names.map(n => caches.delete(n)));
-            } catch (e) { /* ignore */ }
+            const names = await caches.keys();
+            await Promise.all(names.map(n => caches.delete(n)));
         }
         window.location.href = 'login.html';
     },
@@ -222,3 +280,4 @@ window.FB = {
 };
 
 console.log('🔥 Firebase initialized');
+
