@@ -1,6 +1,6 @@
 /* =========================================================
    SERVICE WORKER — FRUIT CRUSH SPECIAL
-   Versi: 3.0.0
+   Versi: 4.0.0
    Strategi:
    - App Shell (HTML lokal)  : Network First + fallback cache
    - Assets statis (gambar)  : Cache First
